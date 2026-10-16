@@ -227,7 +227,6 @@ tfoot td{font-weight:600;border-bottom:0}
         <button type="button" id="mInd">Indicados</button>
         <button type="button" id="mNova" class="nova">Nova marcação</button>
       </div>
-      <label class="tog" id="togWrap" for="tog"><input type="checkbox" id="tog"> Ver indicados ao fundo</label>
     </div>
     <div class="canvas" id="canvas">
       <div class="stage" id="stage"><img id="img" alt="Planta do desenho"><svg id="ov" xmlns="http://www.w3.org/2000/svg"></svg></div>
@@ -238,7 +237,6 @@ tfoot td{font-weight:600;border-bottom:0}
         <button type="button" id="zfit">Ajustar</button>
       </div>
       <div class="ov readout" id="readout">X — · Y —</div>
-      <div class="blank-tag" id="blankTag" hidden>Planta em branco</div>
     </div>
     <div class="panel" id="panel"></div>
   </main>
@@ -367,7 +365,7 @@ let uid=Date.now();
 /* ---------- navegação ---------- */
 function show(scr){['scrHome','scrDw','scrFin'].forEach(id=>$('#'+id).hidden=id!==scr);$('#back').hidden=scr==='scrHome';}
 $('#back').onclick=()=>{if(!$('#scrFin').hidden&&cur){openDw(cur);return}cur=null;show('scrHome');renderHome();setTitle()};
-function setTitle(){const p=P();$('#ttl').textContent=p?p.pk.desenho.nome:'Suportes em Campo';$('#sub').textContent=p?(mode==='nova'?'Nova marcação · planta em branco':'Suportes já indicados'):'M447 · Elétrica'}
+function setTitle(){const p=P();$('#ttl').textContent=p?p.pk.desenho.nome:'Suportes em Campo';$('#sub').textContent=p?(mode==='nova'?'Nova marcação':'Suportes já indicados'):'M447 · Elétrica'}
 function totalConf(){return Object.values(st.marks).reduce((a,m)=>a+m.filter(x=>x.st==='conf').length,0)}
 function renderBadge(){const n=totalConf();$('#finBadge').textContent=n;$('#finBadge').hidden=!n}
 
@@ -572,15 +570,15 @@ function renderOv(){
    .ld-pd{stroke:#1D5BC4;fill:#1D5BC4;stroke-width:${lw}}
    .ghost{opacity:.28} .halo{fill:rgba(29,91,196,.14);stroke:#1D5BC4;stroke-width:${lw*1.2}}
   </style>`;
-  const showEx=mode==='ind'||$('#tog').checked;
-  if(showEx){s+=`<g class="${mode==='nova'?'ghost':''}">`;
-    p.pk.suportesExistentes.forEach((e,i)=>{const[bx,by]=toPx(e.centro[0],e.centro[1]);
-      if(sel&&sel.t==='ex'&&sel.i===i)s+=`<circle class="halo" cx="${bx}" cy="${by}" r="${r*1.45}"/>`;
-      if(e.seta){const[ax,ay]=toPx(e.seta[0],e.seta[1]);s+=leaderSVG(bx,by,ax,ay,r,'ld-ex')}
-      s+=balloonSVG(bx,by,e.codigo,'ex',r,fs)});
-    s+='</g>'}
+  // pedido do usuario: "substituir as folhas em branco para nova marcação pelas
+  // folhas que já possuem marcação" -- a nova marcação mostra os indicados e os
+  // novos já confirmados normalmente (nada de planta em branco/apagada)
+  p.pk.suportesExistentes.forEach((e,i)=>{const[bx,by]=toPx(e.centro[0],e.centro[1]);
+    if(sel&&sel.t==='ex'&&sel.i===i)s+=`<circle class="halo" cx="${bx}" cy="${by}" r="${r*1.45}"/>`;
+    if(e.seta){const[ax,ay]=toPx(e.seta[0],e.seta[1]);s+=leaderSVG(bx,by,ax,ay,r,'ld-ex')}
+    s+=balloonSVG(bx,by,e.codigo,'ex',r,fs)});
   marksOf(cur).forEach(m=>{
-    const vis=mode==='ind'?m.st==='conf':m.st==='pend';if(!vis)return;
+    const vis=mode==='ind'?m.st==='conf':(m.st==='pend'||m.st==='conf');if(!vis)return;
     const cls=m.st==='conf'?'nw':'pd',[ax,ay]=toPx(m.ax,m.ay),[bx,by]=toPx(m.bx,m.by);
     if(sel&&sel.t==='m'&&sel.id===m.id)s+=`<circle class="halo" cx="${bx}" cy="${by}" r="${r*1.45}"/>`;
     if(m.pilha===0)s+=leaderSVG(bx,by,ax,ay,r,'ld-'+cls);
@@ -654,6 +652,11 @@ function tap(cx,cy){
   const ms=marksOf(cur).filter(m=>mode==='ind'?m.st==='conf':m.st==='pend');
   const hitM=ms.slice().reverse().find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15||Math.hypot(m.ax-x,m.ay-y)<=tolMm);
   if(mode==='nova'){
+    // toque em cima de um balão já existente (indicado ou novo confirmado):
+    // não marca ali -- a marcação nova nunca fica por cima das antigas
+    if(!hitM){const sobre=[...p.pk.suportesExistentes.map(e=>e.centro),...marksOf(cur).filter(m=>m.st==='conf').map(m=>[m.bx,m.by])]
+      .some(c=>Math.hypot(c[0]-x,c[1]-y)<=r*1.05);
+      if(sobre){toast('Aí já tem um balão. Toque no ponto do suporte, fora dos balões.');return}}
     pushUndo();
     if(hitM){ // empilha no mesmo ponto, como no "Adicionar suporte"
       const base=ms.filter(m=>m.grp===hitM.grp),top=Math.max(...base.map(m=>m.pilha)),b0=base.find(m=>m.pilha===0);
@@ -679,22 +682,41 @@ function ocupados(excluirGrp){
   const l=P().pk.suportesExistentes.map(e=>e.centro);
   marksOf(cur).forEach(m=>{if(m.grp!==excluirGrp)l.push([m.bx,m.by])});return l;
 }
-// uma pilha de n balões com base em (bx,by) cabe sem encostar em nenhum outro e dentro da planta?
+// distância de um ponto a um segmento
+function distSeg(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?((px-ax)*dx+(py-ay)*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(px-(ax+t*dx),py-(ay+t*dy))}
+// linhas de chamada que já estão na planta (indicados + novos de outros grupos): seta -> centro
+function linhasOcupadas(excluirGrp){
+  const l=P().pk.suportesExistentes.filter(e=>e.seta).map(e=>[e.seta[0],e.seta[1],e.centro[0],e.centro[1]]);
+  marksOf(cur).forEach(m=>{if(m.grp!==excluirGrp&&m.pilha===0)l.push([m.ax,m.ay,m.bx,m.by])});return l;
+}
+// uma pilha de n balões com base em (bx,by) cabe sem encostar em nenhum outro
+// balão NEM ficar em cima de linha de chamada antiga, e dentro da planta?
+// (pedido do usuario: "que as marcações novas não sobreponham as marcações antigas")
 function grupoLivre(bx,by,n,excluirGrp){
-  const r=R(),a=A(),min=2*r*1.04,occ=ocupados(excluirGrp);
+  const r=R(),a=A(),min=2*r*1.04,occ=ocupados(excluirGrp),lin=linhasOcupadas(excluirGrp);
   if(bx<a.minX+r||bx>a.maxX-r||by<a.minY+r||by+(n-1)*2*r>a.maxY-r)return false;
-  for(let k=0;k<n;k++){const cy=by+k*2*r;if(occ.some(c=>Math.hypot(c[0]-bx,c[1]-cy)<min))return false}
+  for(let k=0;k<n;k++){const cy=by+k*2*r;
+    if(occ.some(c=>Math.hypot(c[0]-bx,c[1]-cy)<min))return false;
+    if(lin.some(s=>distSeg(bx,cy,s[0],s[1],s[2],s[3])<r*1.02))return false}
   return true;
 }
+// a linha de chamada nova (seta -> balão) passaria por cima de algum balão já existente?
+function linhaCruzaBalao(ax,ay,bx,by,excluirGrp){
+  const r=R(),L=Math.hypot(bx-ax,by-ay)||1,ex=bx-(bx-ax)/L*r,ey=by-(by-ay)/L*r;
+  return ocupados(excluirGrp).some(c=>distSeg(c[0],c[1],ax,ay,ex,ey)<r*1.02);
+}
 // centro do balão (base da pilha): primeira posição livre ao redor do ponto,
-// em 8 direções e distâncias crescentes -- nunca encosta em outro balão
+// em 8 direções e distâncias crescentes -- nunca encosta em outro balão; de
+// preferência também sem a linha nova cruzar balão antigo
 function place(ax,ay,n,excluirGrp){
-  const r=R();n=n||1;
-  for(const d of [3.2,4.6,6.2,8,10,12.5,15.5,19])for(let k=0;k<8;k++){
+  const r=R();n=n||1;let reserva=null;
+  for(const d of [3.2,4.6,6.2,8,10,12.5,15.5,19,24,30])for(let k=0;k<8;k++){
     const ang=Math.PI/4+k*Math.PI/4,bx=ax+Math.cos(ang)*d*r,by=ay+Math.sin(ang)*d*r;
-    if(grupoLivre(bx,by,n,excluirGrp))return[Math.round(bx),Math.round(by)];
+    if(!grupoLivre(bx,by,n,excluirGrp))continue;
+    if(!linhaCruzaBalao(ax,ay,bx,by,excluirGrp))return[Math.round(bx),Math.round(by)];
+    reserva=reserva||[Math.round(bx),Math.round(by)];
   }
-  return[Math.round(ax+3.2*r*.7071),Math.round(ay+3.2*r*.7071)];
+  return reserva||[Math.round(ax+3.2*r*.7071),Math.round(ay+3.2*r*.7071)];
 }
 function pushUndo(){undo.push(JSON.stringify(marksOf(cur)));if(undo.length>80)undo.shift()}
 
@@ -705,9 +727,8 @@ function renderDw(){
   const p=P(),m=marksOf(cur),pend=m.filter(x=>x.st==='pend'),conf=m.filter(x=>x.st==='conf');
   $('#mInd').textContent=`Indicados (${p.pk.suportesExistentes.length+conf.length})`;
   $('#mNova').textContent=pend.length?`Nova marcação (${pend.length})`:'Nova marcação';
-  $('#togWrap').hidden=mode!=='nova';$('#blankTag').hidden=mode!=='nova';
   const h=$('#hint');h.className='ov hint'+(mode==='nova'?' nova':'');
-  h.textContent=mode==='nova'?'Toque onde o suporte foi montado. Tocar num balão novo empilha outro no mesmo ponto.':'Toque num balão para ver o suporte.';h.hidden=false;
+  h.textContent=mode==='nova'?'Toque onde o suporte foi montado (fora dos balões). Tocar num balão azul empilha outro no mesmo ponto.':'Toque num balão para ver o suporte.';h.hidden=false;
   setTitle();renderOv();renderBadge();
   let s='';const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
   if(mode==='ind'){
@@ -738,7 +759,6 @@ $('#panel').addEventListener('click',e=>{
 $('#panel').addEventListener('change',e=>{const s=e.target.closest('select[data-a="code"]');if(!s)return;pushUndo();const x=marksOf(cur).find(q=>q.id===sel.id);if(x)x.code=s.value;save();renderDw()});
 $('#mInd').onclick=()=>{mode='ind';sel=null;renderDw()};
 $('#mNova').onclick=()=>{mode='nova';sel=null;renderDw()};
-$('#tog').onchange=renderOv;
 
 function openCat(){$('#catBg').hidden=false;$('#catQ').value='';renderCat();}
 function renderCat(){const q=$('#catQ').value.trim().toLowerCase();

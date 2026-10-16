@@ -665,12 +665,12 @@ async function openFinal(){
   const pendTot=Object.values(st.marks).reduce((a,m)=>a+m.filter(x=>x.st==='pend').length,0);
   let s=`<div><h2>Arquivo final</h2><p class="note">${esc(st.resp||'Responsável não informado')} · ${new Date().toLocaleString('pt-BR')}</p></div>
    <div class="tiles"><div class="tile"><span class="l">Desenhos alterados</span><span class="v">${alt.length}</span></div><div class="tile"><span class="l">Suportes novos</span><span class="v" style="color:var(--ok)">${tot}</span></div><div class="tile"><span class="l">Peso adicionado</span><span class="v mono" style="font-size:22px">${fmtKg(kg)} kg</span></div></div>`;
-  if(!st.resp)s+=`<p class="info">Preencha o <b>responsável em campo</b> na tela inicial antes de enviar.</p>`;
   if(pendTot)s+=`<p class="info">${pendTot} marcação(ões) ainda sem confirmar não entram no arquivo final.</p>`;
   if(!alt.length)s+=`<p class="info">Nenhum suporte novo confirmado ainda. Abra um desenho, use <b>Nova marcação</b> e toque em <b>Confirmar adição</b>.</p>`;
   if(alt.length)s+=`<section class="send"><h3>Enviar para o projetista</h3>
       <p class="note">Vai um arquivo <span class="mono">.zip</span> (o plugin lê ele e coloca os balões no desenho) e uma imagem de cada folha alterada, para conferir na conversa.</p>
-      <button class="btn wa" type="button" id="share" disabled>Preparando arquivos…</button>
+      ${st.resp?'':`<div class="field"><label for="respFin">Seu nome (obrigatório para enviar)</label><input id="respFin" type="text" placeholder="Nome do responsável em campo" autocomplete="name"></div>`}
+      <button class="btn wa" type="button" id="share" disabled>${st.resp?'Preparando arquivos…':'Preencha seu nome para enviar'}</button>
       <div class="row"><a class="btn sm" id="dl" hidden>Baixar o .zip</a><span class="note grow" id="shareNote"></span></div>
       <div id="novoWrap" hidden><button class="btn sm" type="button" id="novo">Começar novo levantamento</button></div></section>`;
   alt.forEach((p,i)=>{const conf=marksOf(p.key).filter(m=>m.st==='conf'),grp={};conf.forEach(m=>{grp[m.code]=(grp[m.code]||0)+1});let sk=0;
@@ -694,6 +694,11 @@ async function openFinal(){
   }
   const zipNome=`RETORNO-CAMPO-${quem}-${tag}.zip`,zip=new File([criarZip(entradas)],zipNome,{type:'application/zip'}),zu=URL.createObjectURL(zip);urls.push(zu);
   envio={zip,folhas,urls};
+  // pedido do usuario: o 1º retorno real chegou sem nome ("responsável não
+  // informado") -- sem nome, não envia nem baixa; ao preencher, remonta os
+  // arquivos com o nome (vai no retorno.json e no nome do .zip)
+  const rf=$('#respFin');
+  if(rf){rf.addEventListener('change',()=>{const v=rf.value.trim();if(!v)return;st.resp=v;save();openFinal()});return}
   const dl=$('#dl');dl.href=zu;dl.download=zipNome;dl.hidden=false;
   const sh=$('#share');sh.disabled=false;sh.textContent='Enviar pelo WhatsApp';
   sh.onclick=enviar;

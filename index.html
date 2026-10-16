@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Suportes em Campo</title>
+<meta name="theme-color" content="#1C8A4B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Suportes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: app de celular. Barra do topo | planta com zoom (ocupa tudo) | painel de ação embaixo. No PC a planta divide a tela com o painel à direita. */
+:root{
+  --bg:#E9EDF1; --surface:#FFFFFF; --surface-2:#F3F5F8; --line:#D2D9E1;
+  --fg:#17202A; --muted:#5A6672;
+  --accent:#1D5BC4; --accent-fg:#FFFFFF; --accent-soft:rgba(29,91,196,.10);
+  --ok:#1C8A4B; --ok-bg:#E1F3E8; --warn:#B86F00; --warn-bg:#FBEFD8; --bad:#C2352B; --bad-bg:#FBE3E1;
+  --paper:#FFFFFF; --ink:#26303B;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151B; --surface:#171E26; --surface-2:#1E2731; --line:#2C3743;
+  --fg:#E4EAF0; --muted:#93A0AD;
+  --accent:#6F9DF2; --accent-fg:#0C1420; --accent-soft:rgba(111,157,242,.16);
+  --ok:#4CC27E; --ok-bg:#15301F; --warn:#E6A83C; --warn-bg:#37290F; --bad:#EE6B60; --bad-bg:#3A1B19;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151B; --surface:#171E26; --surface-2:#1E2731; --line:#2C3743;
+  --fg:#E4EAF0; --muted:#93A0AD;
+  --accent:#6F9DF2; --accent-fg:#0C1420; --accent-soft:rgba(111,157,242,.16);
+  --ok:#4CC27E; --ok-bg:#15301F; --warn:#E6A83C; --warn-bg:#37290F; --bad:#EE6B60; --bad-bg:#3A1B19;
+  color-scheme:dark}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+:root{padding-top:env(safe-area-inset-top,0px)}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.4;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+img{max-width:100%}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}
+.top{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--line);min-width:0}
+.top .t{min-width:0;flex:1}
+.top h1{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top p{margin:0;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-family:var(--f-display);font-weight:600;font-size:16px;letter-spacing:.01em;white-space:nowrap;text-decoration:none;color:inherit}
+.btn:active{filter:brightness(.95)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.wa{background:#1FA855;border-color:#1FA855;color:#fff;min-height:52px;font-size:17px}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.sm{min-height:36px;padding:0 10px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:default}
+.badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--ok);color:#fff;font-size:13px;font-family:var(--f-display);font-weight:700}
+
+.screen{min-height:0;overflow:auto}
+/* home */
+.home{max-width:760px;margin:0 auto;padding-block:18px 40px;padding-inline:16px;display:grid;gap:18px}
+.home h2{font-size:24px;font-weight:700}
+.home .lead{margin:4px 0 0;color:var(--muted)}
+.field{display:grid;gap:6px}
+.field label{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.field input{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.cards{display:grid;gap:10px}
+.card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.card .open{all:unset;cursor:pointer;display:grid;gap:2px;min-width:0}
+.card .n{font-family:var(--f-display);font-weight:700;font-size:19px}
+.card .f{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .s{grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.card .acts{display:flex;gap:6px}
+.chip{display:inline-flex;align-items:center;font-family:var(--f-display);font-weight:600;font-size:12.5px;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap;background:var(--surface-2);color:var(--muted)}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.ac{background:var(--accent-soft);color:var(--accent)}
+.upload{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;border:1px dashed var(--line);border-radius:10px;background:var(--surface)}
+.upload p{margin:0;color:var(--muted);font-size:14px;flex:1;min-width:200px}
+.empty{padding:22px 16px;border:1px dashed var(--line);border-radius:10px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--fg);font-family:var(--f-display);font-size:18px;margin-bottom:4px}
+.note{font-size:13px;color:var(--muted);margin:0}
+.err{color:var(--bad);font-size:14px;margin:0}
+.alerta{display:grid;gap:8px;padding:12px 14px;border-radius:10px;background:var(--warn-bg);border:1px solid var(--warn);font-size:14.5px}
+.alerta b{font-family:var(--f-display);font-size:17px}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.bkp{display:grid;gap:8px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.bkp h3{font-size:17px;font-weight:700}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;grid-column:1 / -1;padding:8px 10px;border-radius:8px;background:var(--bad-bg);font-size:14px}
+
+/* drawing */
+.dw{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%;min-height:0}
+.modebar{display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:1;max-width:460px}
+.seg button{flex:1;min-height:42px;padding:0 10px;border:0;background:var(--surface);font-family:var(--f-display);font-weight:600;font-size:15.5px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.seg button.nova[aria-pressed="true"]{background:var(--ok);color:#fff}
+.tog{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted)}
+.tog input{width:20px;height:20px}
+.canvas{position:relative;overflow:hidden;background:#DDE2E8;touch-action:none;min-height:0}
+.stage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.stage img{display:block;width:100%;height:100%;max-width:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;pointer-events:none;background:#fff}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.ov{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.zoomctl{right:10px;top:10px;display:flex;flex-direction:column;overflow:hidden}
+.zoomctl button{width:46px;height:44px;border:0;border-bottom:1px solid var(--line);background:var(--surface);font-size:22px;line-height:1}
+.zoomctl button:last-child{border-bottom:0;font-size:12px;font-family:var(--f-display);font-weight:600}
+.hint{left:10px;top:10px;max-width:min(330px,calc(100% - 80px));padding:8px 11px;font-size:13.5px}
+.hint.nova{background:var(--ok);color:#fff;border-color:var(--ok)}
+.readout{left:10px;bottom:10px;padding:5px 9px;font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.blank-tag{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:4px 10px;border-radius:999px;background:var(--ok);color:#fff;font-family:var(--f-display);font-weight:700;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+
+.panel{background:var(--surface);border-top:1px solid var(--line);padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;max-height:46vh;overflow:auto}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row .grow,.grow{flex:1}
+.stat{font-size:14px;color:var(--muted)}
+.stat b{color:var(--fg)}
+.cur{display:flex;gap:12px;align-items:center;padding:8px 10px;border:1px solid var(--ok);border-radius:10px;background:var(--ok-bg);text-align:left;width:100%}
+.cur .meta{flex:1}
+.mini{flex:none;display:inline-grid;place-items:center;width:42px;height:42px;border-radius:50%;border:2px solid var(--ink);background:#fff;color:var(--ink);font-family:var(--f-mono);font-weight:500;font-size:16px}
+.mini.ok{border-color:var(--ok);color:var(--ok);background:var(--ok-bg)}
+.mini.ac{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.meta{display:grid;gap:1px;min-width:0}
+.meta b{font-family:var(--f-mono);font-weight:500;font-size:14px}
+.meta small{color:var(--muted);font-size:13px}
+.selcard{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;flex-wrap:wrap}
+.selcard select{min-height:40px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);max-width:100%}
+
+/* catalog sheet */
+.sheet-bg{position:fixed;inset:0;z-index:30;background:rgba(10,14,20,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:min(560px,100%);max-height:86vh;background:var(--surface);border-radius:14px 14px 0 0;display:grid;grid-template-rows:auto auto minmax(0,1fr);padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));gap:8px}
+.sheet .h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sheet h3{font-size:19px;font-weight:700}
+.sheet input{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.cat{overflow:auto;display:grid;gap:2px;align-content:start}
+.cat button{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;padding:7px 8px;border:0;border-radius:8px;background:transparent;min-height:52px}
+.cat button.on{background:var(--ok-bg)}
+.cat .c{font-family:var(--f-mono);font-weight:500;font-size:17px;text-align:center}
+.cat .k{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+/* final */
+.fin{max-width:1000px;margin:0 auto;padding-block:18px 48px;padding-inline:16px;display:grid;gap:18px}
+.fin h2{font-size:26px;font-weight:700}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:2px;min-width:0}
+.tile .l{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font-family:var(--f-display);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;line-height:1.1}
+.send{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
+.send h3{font-size:20px;font-weight:700}
+.block{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:12px;min-width:0}
+.block h3{font-size:20px;font-weight:700}
+.block .sub{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.prev{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;margin:0}
+.prev img{display:block;width:100%;height:auto}
+.prev .cap{display:flex;justify-content:space-between;gap:8px;padding:6px 10px;font-size:12px;color:var(--muted);background:var(--surface);border-bottom:1px solid var(--line);font-family:var(--f-mono)}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--line)}
+td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tfoot td{font-weight:600;border-bottom:0}
+.info{background:var(--warn-bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
+.busy{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(10,14,20,.35)}
+.busy div{background:var(--surface);padding:14px 18px;border-radius:10px;font-family:var(--f-display);font-weight:600;font-size:16px}
+
+@media (min-width:900px){
+  .dw{grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:auto minmax(0,1fr)}
+  .modebar{grid-column:1 / -1}
+  .panel{grid-column:2;grid-row:2;max-height:none;border-top:0;border-left:1px solid var(--line);align-content:start}
+}
+@media (max-width:420px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <button class="btn ghost sm" id="back" type="button" hidden aria-label="Voltar aos desenhos">‹ Desenhos</button>
+    <div class="t"><h1 id="ttl">Suportes em Campo</h1><p id="sub">M447 · Elétrica</p></div>
+    <button class="btn sm" id="goFinal" type="button">Finalizar <span class="badge" id="finBadge" hidden>0</span></button>
+  </header>
+
+  <main class="screen" id="scrHome">
+    <div class="home">
+      <div><h2>Levantamento de suportes</h2><p class="lead">Abra um desenho, confira os suportes já indicados e use <b>Nova marcação</b> para marcar os que foram montados.</p></div>
+      <div class="field"><label for="resp">Responsável em campo</label><input id="resp" type="text" placeholder="Seu nome" autocomplete="name"></div>
+      <div class="alerta" id="alerta" hidden></div>
+      <div class="cards" id="cards"></div>
+      <div class="upload">
+        <p>Recebeu desenhos pelo WhatsApp? Salve o arquivo <span class="mono">.campo.zip</span> no celular e abra aqui. Ele fica guardado no aparelho.</p>
+        <label class="btn primary" for="zipIn">Abrir pacote</label>
+        <input id="zipIn" type="file" accept=".zip,application/zip,application/x-zip-compressed,application/octet-stream" multiple hidden>
+      </div>
+      <p class="err" id="zipErr" hidden></p>
+      <section class="bkp">
+        <h3>Cópia de segurança das marcações</h3>
+        <p class="note">As marcações ficam só neste celular. Antes de trocar de aparelho, limpar o navegador ou se o envio não der certo, salve uma cópia e guarde no WhatsApp ou no Drive.</p>
+        <div class="row">
+          <button class="btn sm" type="button" id="bkpSalvar">Salvar cópia</button>
+          <label class="btn sm" for="bkpIn">Restaurar cópia</label>
+          <input id="bkpIn" type="file" accept=".json,application/json" hidden>
+          <a class="btn sm" id="bkpDl" hidden>Baixar a cópia</a>
+        </div>
+        <p class="note" id="bkpNote"></p>
+      </section>
+      <p class="note" id="ver">As marcações e os desenhos ficam salvos só neste aparelho, e o app funciona sem internet depois de aberto uma vez.</p>
+    </div>
+  </main>
+
+  <main class="screen dw" id="scrDw" hidden>
+    <div class="modebar">
+      <div class="seg" role="group" aria-label="Modo">
+        <button type="button" id="mInd">Indicados</button>
+        <button type="button" id="mNova" class="nova">Nova marcação</button>
+      </div>
+      <label class="tog" id="togWrap" for="tog"><input type="checkbox" id="tog"> Ver indicados ao fundo</label>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="stage" id="stage"><img id="img" alt="Planta do desenho"><svg id="ov" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="ov hint" id="hint" hidden></div>
+      <div class="ov zoomctl">
+        <button type="button" id="zin" aria-label="Aproximar">+</button>
+        <button type="button" id="zout" aria-label="Afastar">−</button>
+        <button type="button" id="zfit">Ajustar</button>
+      </div>
+      <div class="ov readout" id="readout">X — · Y —</div>
+      <div class="blank-tag" id="blankTag" hidden>Planta em branco</div>
+    </div>
+    <div class="panel" id="panel"></div>
+  </main>
+
+  <main class="screen" id="scrFin" hidden><div class="fin" id="fin"></div></main>
+</div>
+
+<div class="sheet-bg" id="catBg" hidden>
+  <div class="sheet" role="dialog" aria-label="Escolher suporte">
+    <div class="h"><h3>Escolher suporte</h3><button class="btn sm" type="button" id="catClose">Fechar</button></div>
+    <input id="catQ" type="search" placeholder="Buscar código ou tag">
+    <div class="cat" id="catList"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="busy" id="busy" hidden><div id="busyTxt">Carregando…</div></div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtKg=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pad=(n,k)=>String(n).padStart(k,'0');
+const hhmm=d=>pad(d.getHours(),2)+':'+pad(d.getMinutes(),2);
+function busy(t){$('#busyTxt').textContent=t||'';$('#busy').hidden=!t}
+
+/* ---------- armazenamento dos pacotes no aparelho (IndexedDB) ---------- */
+// pacotes ficam guardados com as imagens -- o funcionário abre o .zip uma vez
+// e o desenho continua no app depois de fechar, sem internet.
+const DB_NOME='milplan-campo',DB_STORE='pacotes';
+function abrirDb(){return new Promise((ok,no)=>{try{const r=indexedDB.open(DB_NOME,1);r.onupgradeneeded=()=>r.result.createObjectStore(DB_STORE,{keyPath:'key'});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}catch(e){no(e)}})}
+async function dbTx(modo,fn){const db=await abrirDb();return new Promise((ok,no)=>{const tx=db.transaction(DB_STORE,modo),st=tx.objectStore(DB_STORE);const r=fn(st);tx.oncomplete=()=>ok(r&&r.result);tx.onerror=()=>no(tx.error)})}
+const dbTodos=()=>dbTx('readonly',s=>s.getAll());
+const dbGravar=v=>dbTx('readwrite',s=>s.put(v));
+const dbApagar=k=>dbTx('readwrite',s=>s.delete(k));
+
+const pacotes=[]; // {key, pk, area(url), folha(url), cat}
+function addPacote(pk,area,folha){
+  const key=pk.desenho.arquivo;const i=pacotes.findIndex(p=>p.key===key);
+  if(i>=0){try{URL.revokeObjectURL(pacotes[i].area);URL.revokeObjectURL(pacotes[i].folha)}catch(e){}}
+  const p={key,pk,area,folha,cat:Object.fromEntries(pk.catalogo.map(c=>[c.codigo,c]))};
+  if(i>=0)pacotes[i]=p;else pacotes.push(p);
+  pacotes.sort((a,b)=>a.pk.desenho.nome.localeCompare(b.pk.desenho.nome));
+}
+
+/* ---------- leitor de .zip (sem biblioteca) ---------- */
+async function lerZip(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf);let e=-1;
+  for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65557);i--)if(dv.getUint32(i,true)===0x06054b50){e=i;break}
+  if(e<0)throw new Error('Arquivo não é um .zip válido.');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const out={};const td=new TextDecoder();
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)throw new Error('Diretório do .zip corrompido.');
+    const met=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
+    const nome=td.decode(u8.subarray(p+46,p+46+nl));
+    const ini=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true);const dados=u8.subarray(ini,ini+cs);
+    if(met===0)out[nome]=dados;
+    else if(met===8){if(!('DecompressionStream'in window))throw new Error('Este navegador não abre .zip compactado. Atualize o navegador.');
+      out[nome]=new Uint8Array(await new Response(new Blob([dados]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())}
+    else throw new Error('Compressão do .zip não suportada.');
+    p+=46+nl+xl+cl;
+  }
+  return out;
+}
+// revisão pelo nome do desenho: "M447-ELE-SUP-CWA17_R1" -> {base:"M447-ELE-SUP-CWA17", rev:1}
+function revDe(nome){const m=/^(.+?)[_\- ]R(\d+)$/i.exec(nome||'');return m?{base:m[1].toUpperCase(),rev:+m[2]}:{base:String(nome||'').toUpperCase(),rev:-1}}
+const temMarcas=k=>(st.marks[k]||[]).some(m=>m.st==='pend'||(m.st==='conf'&&!m.enviado));
+// outra revisão MAIS NOVA do mesmo desenho já no aparelho
+function substitutoDe(p){const r=revDe(p.pk.desenho.nome);return pacotes.find(o=>o!==p&&revDe(o.pk.desenho.nome).base===r.base&&revDe(o.pk.desenho.nome).rev>r.rev)}
+async function removerPacote(k){const i=pacotes.findIndex(p=>p.key===k);
+  if(i>=0){try{URL.revokeObjectURL(pacotes[i].area);URL.revokeObjectURL(pacotes[i].folha)}catch(_){}pacotes.splice(i,1)}
+  delete st.marks[k];save();try{await dbApagar(k)}catch(_){}}
+
+async function importarZip(buf){
+  const z=await lerZip(buf);
+  // pacote de 1 desenho = pacote.json na raiz; lote = uma pasta por desenho
+  const jsons=Object.keys(z).filter(n=>n==='pacote.json'||n.endsWith('/pacote.json'));
+  if(!jsons.length)throw new Error('Não achei pacote.json dentro do arquivo. É o .campo.zip gerado pelo plugin?');
+  let n=0;const avisos=[];
+  for(const j of jsons){
+    const pk=JSON.parse(new TextDecoder().decode(z[j])),dir=j.slice(0,j.length-'pacote.json'.length);
+    if(!String(pk.formato||'').startsWith('milplan-campo-suportes/'))throw new Error('Esse .zip não é um pacote de campo do plugin.');
+    // revisão nova x antiga do mesmo desenho: nunca volta pra' uma revisão
+    // mais velha; a antiga sai sozinha se não tiver marcação pendente,
+    // senão fica (marcada como substituída) até o funcionário enviar
+    const r=revDe(pk.desenho.nome),mesmos=pacotes.filter(o=>o.key!==pk.desenho.arquivo&&revDe(o.pk.desenho.nome).base===r.base);
+    const maisNova=mesmos.find(o=>revDe(o.pk.desenho.nome).rev>r.rev);
+    if(maisNova){avisos.push(`${pk.desenho.nome} não foi carregado: este aparelho já tem a ${maisNova.pk.desenho.nome}, que é mais nova.`);continue}
+    const blob=nm=>{const d=z[dir+nm];if(!d)throw new Error(`Faltou ${dir+nm} no pacote.`);return new Blob([d],{type:'image/png'})};
+    const area=blob(pk.area.imagem),folha=blob(pk.folha.imagem);
+    try{await dbGravar({key:pk.desenho.arquivo,pk,area,folha,em:Date.now()})}catch(e){console.warn('nao gravou no aparelho',e)}
+    addPacote(pk,URL.createObjectURL(area),URL.createObjectURL(folha));n++;
+    for(const velho of mesmos){
+      if(temMarcas(velho.key))avisos.push(`${velho.pk.desenho.nome} tem marcações não enviadas: envie antes de remover. As novas marcações vão na ${pk.desenho.nome}.`);
+      else{await removerPacote(velho.key);avisos.push(`${velho.pk.desenho.nome} foi trocado pela ${pk.desenho.nome}.`)}
+    }
+  }
+  return{n,avisos};
+}
+async function importarArquivos(lista){ // [{nome, buf}]
+  const err=$('#zipErr');err.hidden=true;let tot=0;const msgs=[];
+  for(const a of lista){
+    busy(`Abrindo ${a.nome}…`);
+    try{const r=await importarZip(a.buf);tot+=r.n;msgs.push(...r.avisos)}
+    catch(x){msgs.push(`${a.nome}: ${x.message}`)}
+  }
+  busy(null);
+  if(msgs.length){err.innerHTML=msgs.map(esc).join('<br>');err.hidden=false}
+  renderHome();if(tot)toast(tot>1?`${tot} desenhos carregados`:'1 desenho carregado');
+}
+$('#zipIn').addEventListener('change',async e=>{
+  const lista=[];for(const f of e.target.files)lista.push({nome:f.name,buf:await f.arrayBuffer()});
+  e.target.value='';await importarArquivos(lista);
+});
+
+/* ---------- estado (marcações ficam no aparelho) ---------- */
+const KEY='milplan-campo-v1';
+let st={resp:'',code:null,marks:{}};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.marks)st=Object.assign(st,s)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+const marksOf=k=>(st.marks[k]=st.marks[k]||[]);
+let cur=null,mode='ind',sel=null,undo=[],confirmando=null;
+const P=()=>pacotes.find(p=>p.key===cur);
+let uid=Date.now();
+
+/* ---------- navegação ---------- */
+function show(scr){['scrHome','scrDw','scrFin'].forEach(id=>$('#'+id).hidden=id!==scr);$('#back').hidden=scr==='scrHome';}
+$('#back').onclick=()=>{if(!$('#scrFin').hidden&&cur){openDw(cur);return}cur=null;show('scrHome');renderHome();setTitle()};
+function setTitle(){const p=P();$('#ttl').textContent=p?p.pk.desenho.nome:'Suportes em Campo';$('#sub').textContent=p?(mode==='nova'?'Nova marcação · planta em branco':'Suportes já indicados'):'M447 · Elétrica'}
+function totalConf(){return Object.values(st.marks).reduce((a,m)=>a+m.filter(x=>x.st==='conf').length,0)}
+function renderBadge(){const n=totalConf();$('#finBadge').textContent=n;$('#finBadge').hidden=!n}
+
+// alerta de confirmados não enviados -- risco real de perder o trabalho se o
+// celular for trocado/limpo antes do envio
+const HORAS_ALERTA=12;
+function renderAlerta(){
+  const pend=[];Object.entries(st.marks).forEach(([k,ms])=>ms.forEach(m=>{if(m.st==='conf'&&!m.enviado)pend.push(m)}));
+  const el=$('#alerta');
+  if(!pend.length){el.hidden=true;return}
+  const maisVelho=Math.min(...pend.map(m=>Date.parse(m.t)||Date.now())),horas=(Date.now()-maisVelho)/36e5;
+  if(horas<HORAS_ALERTA){el.hidden=true;return}
+  const d=new Date(maisVelho);
+  el.innerHTML=`<b>${pend.length} suporte${pend.length>1?'s':''} confirmado${pend.length>1?'s':''} sem enviar</b><span>Marcados desde ${d.toLocaleDateString('pt-BR')} ${hhmm(d)}. Envie para o projetista ou salve uma cópia de segurança.</span><div class="row"><button class="btn ok sm" type="button" data-go-final>Enviar agora</button></div>`;
+  el.hidden=false;
+}
+function renderHome(){
+  $('#resp').value=st.resp||'';renderAlerta();
+  if(!pacotes.length){$('#cards').innerHTML='<div class="empty"><b>Nenhum desenho no aparelho</b>Toque em <b style="display:inline;font-size:inherit">Abrir pacote</b> e escolha o arquivo .campo.zip que chegou pelo WhatsApp.</div>';renderBadge();return}
+  $('#cards').innerHTML=pacotes.map(p=>{const m=marksOf(p.key),c=m.filter(x=>x.st==='conf').length,pe=m.filter(x=>x.st==='pend').length,sub=substitutoDe(p);
+    const conf=confirmando===p.key?`<div class="confirm"><span class="grow">Tirar este desenho do aparelho${c+pe?` e apagar ${c+pe} marcação(ões)`:''}?</span><button class="btn sm danger" type="button" data-rm="${esc(p.key)}">Remover</button><button class="btn sm" type="button" data-cancel>Cancelar</button></div>`:'';
+    return`<div class="card"><button type="button" class="open" data-k="${esc(p.key)}"><span class="n">${esc(p.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span><span class="f">${esc(p.pk.desenho.arquivo)}</span></button>
+      <div class="acts"><button type="button" class="btn primary sm" data-k="${esc(p.key)}">Abrir</button></div>
+      <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
+  renderBadge();
+}
+$('#alerta').addEventListener('click',e=>{if(e.target.closest('[data-go-final]'))openFinal()});
+
+/* ---------- cópia de segurança das marcações ---------- */
+function bkpArquivo(){
+  const d=new Date(),nome=`MARCACOES-CAMPO-${nomeArq(st.resp||'campo')||'campo'}-${carimboData()}.json`;
+  const dados={formato:'milplan-campo-backup/1',salvoEm:d.toISOString(),responsavel:st.resp||null,
+    desenhos:pacotes.map(p=>p.key),marks:st.marks};
+  return new File([JSON.stringify(dados)],nome,{type:'application/json'});
+}
+$('#bkpSalvar').onclick=async()=>{
+  const f=bkpArquivo(),n=$('#bkpNote'),total=Object.values(st.marks).reduce((a,m)=>a+m.length,0);
+  if(!total){n.textContent='Nenhuma marcação para salvar ainda.';return}
+  const dl=$('#bkpDl');try{URL.revokeObjectURL(dl.href)}catch(_){}dl.href=URL.createObjectURL(f);dl.download=f.name;dl.hidden=false;
+  if(navigator.canShare&&navigator.canShare({files:[f]})){
+    try{await navigator.share({files:[f],title:'Cópia das marcações de campo'});n.textContent=`Cópia com ${total} marcação(ões) compartilhada.`;return}
+    catch(e){if(e&&e.name==='AbortError'){n.textContent='Cancelado.';return}}
+  }
+  n.textContent=`Use “Baixar a cópia” (${total} marcação(ões)) e guarde o arquivo.`;
+};
+$('#bkpIn').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;const n=$('#bkpNote');
+  try{
+    const d=JSON.parse(await f.text());
+    if(d.formato!=='milplan-campo-backup/1'||!d.marks)throw new Error('não é uma cópia de marcações do app.');
+    // junta sem duplicar (mesmo id = mesma marcação)
+    let novas=0;
+    for(const[k,ms]of Object.entries(d.marks)){const atual=marksOf(k),ids=new Set(atual.map(m=>m.id));
+      for(const m of ms)if(!ids.has(m.id)){atual.push(m);novas++}}
+    if(!st.resp&&d.responsavel)st.resp=d.responsavel;
+    save();renderHome();
+    const faltam=Object.keys(d.marks).filter(k=>d.marks[k].length&&!pacotes.some(p=>p.key===k));
+    n.textContent=`${novas} marcação(ões) restaurada(s).`+(faltam.length?` Abra também o pacote de: ${faltam.join(', ')} para ver essas marcações.`:'');
+  }catch(x){n.textContent='Não consegui restaurar: '+x.message}
+});
+$('#cards').addEventListener('click',async e=>{
+  const o=e.target.closest('[data-k]');if(o){openDw(o.dataset.k);return}
+  const a=e.target.closest('[data-ask]');if(a){confirmando=a.dataset.ask;renderHome();return}
+  if(e.target.closest('[data-cancel]')){confirmando=null;renderHome();return}
+  const r=e.target.closest('[data-rm]');if(r){await removerPacote(r.dataset.rm);confirmando=null;renderHome();toast('Desenho removido do aparelho')}
+});
+$('#resp').addEventListener('input',e=>{st.resp=e.target.value;save()});
+
+/* ---------- planta ---------- */
+const img=$('#img'),stage=$('#stage'),canvas=$('#canvas'),ov=$('#ov');
+let V={s:1,tx:0,ty:0},W=1,H=1;
+function openDw(k){
+  cur=k;sel=null;undo=[];const p=P();if(!p)return;
+  if(!st.code||!p.cat[st.code])st.code=p.pk.catalogo[0].codigo;
+  W=p.pk.area.larguraPx;H=p.pk.area.alturaPx;
+  stage.style.width=W+'px';stage.style.height=H+'px';ov.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  img.src=p.area;mode=marksOf(k).some(x=>x.st==='pend')?'nova':'ind';
+  precisaFit=true;show('scrDw');renderDw();requestAnimationFrame(fit);
+}
+const A=()=>P().pk.area;
+const toPx=(x,y)=>[(x-A().minX)/A().mmPorPixel,(A().maxY-y)/A().mmPorPixel];
+const toW=(px,py)=>[A().minX+px*A().mmPorPixel,A().maxY-py*A().mmPorPixel];
+function applyV(){stage.style.transform=`translate(${V.tx}px,${V.ty}px) scale(${V.s})`}
+let tamAnt=null,precisaFit=false;
+function fit(){const r=canvas.getBoundingClientRect();if(!r.width)return;V.s=Math.min(r.width/W,r.height/H)*.98;V.tx=(r.width-W*V.s)/2;V.ty=(r.height-H*V.s)/2;applyV();tamAnt={w:r.width,h:r.height};precisaFit=false}
+function zoomAt(cx,cy,f){const r=canvas.getBoundingClientRect(),sx=cx-r.left,sy=cy-r.top,minS=Math.min(r.width/W,r.height/H)*.5;
+  const ns=Math.min(4,Math.max(minS,V.s*f)),ix=(sx-V.tx)/V.s,iy=(sy-V.ty)/V.s;V.s=ns;V.tx=sx-ix*ns;V.ty=sy-iy*ns;applyV()}
+function screenToW(cx,cy){const r=canvas.getBoundingClientRect();return toW((cx-r.left-V.tx)/V.s,(cy-r.top-V.ty)/V.s)}
+// o painel de baixo muda de altura a cada marcação: só o 1º tamanho (ao abrir
+// o desenho) ajusta a planta inteira; depois o zoom fica onde está
+new ResizeObserver(()=>{
+  if($('#scrDw').hidden)return;const r=canvas.getBoundingClientRect();if(!r.width)return;
+  if(precisaFit||!tamAnt){fit();return}
+  V.tx+=(r.width-tamAnt.w)/2;V.ty+=(r.height-tamAnt.h)/2;tamAnt={w:r.width,h:r.height};applyV();
+}).observe(canvas);
+
+function R(){return P().pk.balao.raioMm}
+function balloonSVG(cx,cy,code,cls,r,fs){
+  return`<g class="${cls}"><circle cx="${cx}" cy="${cy}" r="${r}"/><text x="${cx}" y="${cy}" font-size="${fs}" text-anchor="middle" dominant-baseline="central">${esc(code)}</text></g>`;
+}
+function leaderSVG(bx,by,ax,ay,r,cls){
+  const dx=ax-bx,dy=ay-by,L=Math.hypot(dx,dy)||1;if(L<=r)return'';const ex=bx+dx/L*r,ey=by+dy/L*r,ux=-dx/L,uy=-dy/L,h=r*.55,w=r*.2,qx=ax+ux*h,qy=ay+uy*h;
+  return`<line class="${cls}" x1="${ex}" y1="${ey}" x2="${ax}" y2="${ay}"/><polygon class="${cls}" points="${ax},${ay} ${qx-uy*w},${qy+ux*w} ${qx+uy*w},${qy-ux*w}"/>`;
+}
+function renderOv(){
+  const p=P(),mm=A().mmPorPixel,r=R()/mm,fs=p.pk.balao.alturaTextoMm/mm*1.3,lw=Math.max(2,r*.07);let s=`<style>
+   .ex circle{fill:#fff;stroke:#1d2530;stroke-width:${lw}} .ex text{fill:#1d2530;font-family:'IBM Plex Mono',monospace;font-weight:500}
+   .ld-ex{stroke:#1d2530;fill:#1d2530;stroke-width:${lw*.8}}
+   .nw circle{fill:#E1F3E8;stroke:#1C8A4B;stroke-width:${lw*1.3}} .nw text{fill:#13633A;font-family:'IBM Plex Mono',monospace;font-weight:500}
+   .ld-nw{stroke:#1C8A4B;fill:#1C8A4B;stroke-width:${lw}}
+   .pd circle{fill:#E6EEFB;stroke:#1D5BC4;stroke-width:${lw*1.3}} .pd text{fill:#174A9E;font-family:'IBM Plex Mono',monospace;font-weight:500}
+   .ld-pd{stroke:#1D5BC4;fill:#1D5BC4;stroke-width:${lw}}
+   .ghost{opacity:.28} .halo{fill:rgba(29,91,196,.14);stroke:#1D5BC4;stroke-width:${lw*1.2}}
+  </style>`;
+  const showEx=mode==='ind'||$('#tog').checked;
+  if(showEx){s+=`<g class="${mode==='nova'?'ghost':''}">`;
+    p.pk.suportesExistentes.forEach((e,i)=>{const[bx,by]=toPx(e.centro[0],e.centro[1]);
+      if(sel&&sel.t==='ex'&&sel.i===i)s+=`<circle class="halo" cx="${bx}" cy="${by}" r="${r*1.45}"/>`;
+      if(e.seta){const[ax,ay]=toPx(e.seta[0],e.seta[1]);s+=leaderSVG(bx,by,ax,ay,r,'ld-ex')}
+      s+=balloonSVG(bx,by,e.codigo,'ex',r,fs)});
+    s+='</g>'}
+  marksOf(cur).forEach(m=>{
+    const vis=mode==='ind'?m.st==='conf':m.st==='pend';if(!vis)return;
+    const cls=m.st==='conf'?'nw':'pd',[ax,ay]=toPx(m.ax,m.ay),[bx,by]=toPx(m.bx,m.by);
+    if(sel&&sel.t==='m'&&sel.id===m.id)s+=`<circle class="halo" cx="${bx}" cy="${by}" r="${r*1.45}"/>`;
+    if(m.pilha===0)s+=leaderSVG(bx,by,ax,ay,r,'ld-'+cls);
+    s+=balloonSVG(bx,by,m.code,cls,r,fs);
+  });
+  ov.innerHTML=s;
+}
+
+/* ---------- toque / zoom ---------- */
+const ptrs=new Map();let g=null;
+canvas.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.ov'))return;
+  canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===2){const[a,b]=[...ptrs.values()];g={t:'pinch',d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
+  if(ptrs.size>2)return;
+  g={t:'tap',sx:e.clientX,sy:e.clientY,tx:V.tx,ty:V.ty,moved:false};
+});
+canvas.addEventListener('pointermove',e=>{
+  if(cur&&P()){const[x,y]=screenToW(e.clientX,e.clientY);$('#readout').textContent=`X ${Math.round(x)} · Y ${Math.round(y)}`}
+  if(!ptrs.has(e.pointerId)||!g)return;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(g.t==='pinch'){if(ptrs.size<2)return;const[a,b]=[...ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    V.tx+=mx-g.mx;V.ty+=my-g.my;zoomAt(mx,my,d/g.d);g.d=d;g.mx=mx;g.my=my;return}
+  if(g.t!=='tap')return;
+  const dx=e.clientX-g.sx,dy=e.clientY-g.sy;if(!g.moved&&Math.hypot(dx,dy)>8)g.moved=true;
+  if(g.moved){V.tx=g.tx+dx;V.ty=g.ty+dy;applyV()}
+});
+function endP(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(!g)return;
+  if(g.t==='pinch'){g=ptrs.size?{t:'none'}:null;return}
+  if(g.t==='tap'&&!g.moved&&e.type==='pointerup')tap(e.clientX,e.clientY);
+  if(!ptrs.size)g=null}
+canvas.addEventListener('pointerup',endP);canvas.addEventListener('pointercancel',endP);
+canvas.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,Math.exp(-e.deltaY*.0015))},{passive:false});
+const ctr=f=>{const r=canvas.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,f)};
+$('#zin').onclick=()=>ctr(1.5);$('#zout').onclick=()=>ctr(1/1.5);$('#zfit').onclick=fit;
+
+function tap(cx,cy){
+  const[x,y]=screenToW(cx,cy),p=P(),r=R(),tolMm=24/V.s*A().mmPorPixel;
+  if(x<A().minX||x>A().maxX||y<A().minY||y>A().maxY)return;
+  const ms=marksOf(cur).filter(m=>mode==='ind'?m.st==='conf':m.st==='pend');
+  const hitM=ms.slice().reverse().find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15||Math.hypot(m.ax-x,m.ay-y)<=tolMm);
+  if(mode==='nova'){
+    pushUndo();
+    if(hitM){ // empilha no mesmo ponto, como no "Adicionar suporte"
+      const base=ms.filter(m=>m.grp===hitM.grp),top=Math.max(...base.map(m=>m.pilha)),b0=base.find(m=>m.pilha===0);
+      const m={id:++uid,grp:hitM.grp,code:st.code,ax:b0.ax,ay:b0.ay,bx:b0.bx,by:b0.by+(top+1)*2*r,pilha:top+1,st:'pend',t:new Date().toISOString()};
+      marksOf(cur).push(m);sel={t:'m',id:m.id};toast(`Suporte ${st.code} empilhado`);
+    }else{
+      const[bx,by]=place(x,y);const id=++uid;
+      marksOf(cur).push({id,grp:id,code:st.code,ax:Math.round(x),ay:Math.round(y),bx,by,pilha:0,st:'pend',t:new Date().toISOString()});sel={t:'m',id};
+      if(navigator.vibrate)try{navigator.vibrate(15)}catch(_){}
+    }
+    save();renderDw();return;
+  }
+  if(hitM){sel={t:'m',id:hitM.id}}
+  else{let best=-1,bd=1e18;p.pk.suportesExistentes.forEach((e,i)=>{const d=Math.hypot(e.centro[0]-x,e.centro[1]-y);if(d<bd){bd=d;best=i}});
+    sel=bd<=r*1.15?{t:'ex',i:best}:null}
+  renderDw();
+}
+// centro do balão: primeira posição livre ao redor do ponto (diagonais, distâncias crescentes)
+function place(ax,ay){
+  const p=P(),r=R(),a=A(),cent=[...p.pk.suportesExistentes.map(e=>e.centro),...marksOf(cur).map(m=>[m.bx,m.by])];
+  for(const d of [3.2,4.6,6.2])for(const[sx,sy] of [[1,1],[-1,1],[1,-1],[-1,-1]]){
+    const bx=ax+sx*d*r*.7071,by=ay+sy*d*r*.7071;
+    if(bx<a.minX+r||bx>a.maxX-r||by<a.minY+r||by>a.maxY-r*3)continue;
+    if(cent.every(c=>Math.hypot(c[0]-bx,c[1]-by)>r*2.3))return[Math.round(bx),Math.round(by)];
+  }
+  return[Math.round(ax+3.2*r*.7071),Math.round(ay+3.2*r*.7071)];
+}
+function pushUndo(){undo.push(JSON.stringify(marksOf(cur)));if(undo.length>80)undo.shift()}
+
+/* ---------- painel ---------- */
+const catOf=c=>P().cat[c]||{codigo:c,tag:'?',pesoKg:0};
+function renderDw(){
+  $('#mInd').setAttribute('aria-pressed',mode==='ind');$('#mNova').setAttribute('aria-pressed',mode==='nova');
+  const p=P(),m=marksOf(cur),pend=m.filter(x=>x.st==='pend'),conf=m.filter(x=>x.st==='conf');
+  $('#mInd').textContent=`Indicados (${p.pk.suportesExistentes.length+conf.length})`;
+  $('#mNova').textContent=pend.length?`Nova marcação (${pend.length})`:'Nova marcação';
+  $('#togWrap').hidden=mode!=='nova';$('#blankTag').hidden=mode!=='nova';
+  const h=$('#hint');h.className='ov hint'+(mode==='nova'?' nova':'');
+  h.textContent=mode==='nova'?'Toque onde o suporte foi montado. Tocar num balão novo empilha outro no mesmo ponto.':'Toque num balão para ver o suporte.';h.hidden=false;
+  setTitle();renderOv();renderBadge();
+  let s='';const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
+  if(mode==='ind'){
+    s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}</div>`;
+    if(se){const c=catOf(se.codigo);s+=`<div class="selcard"><span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div></div>`}
+    if(sm){const c=catOf(sm.code);s+=`<div class="selcard"><span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button></div>`}
+    s+=`<button type="button" class="btn ok" data-a="nova">${pend.length?`Continuar nova marcação (${pend.length})`:'Nova marcação'}</button>`;
+  }else{
+    const c=catOf(st.code);
+    s+=`<button type="button" class="cur" data-a="cat"><span class="mini ok">${esc(c.codigo)}</span><span class="meta"><b>${esc(c.tag)}</b><small>${fmtKg(c.pesoKg)} kg · toque para trocar o suporte</small></span><span aria-hidden="true">›</span></button>`;
+    if(sm){const cc=catOf(sm.code);s+=`<div class="selcard"><span class="mini ac">${esc(sm.code)}</span><div class="meta grow"><b>${esc(cc.tag)}</b><small>${sm.pilha?`Empilhado (${sm.pilha+1}º no ponto)`:'Com linha de chamada'}</small></div>
+      <select data-a="code" aria-label="Trocar código">${p.pk.catalogo.map(x=>`<option value="${esc(x.codigo)}"${x.codigo===sm.code?' selected':''}>${esc(x.codigo)}</option>`).join('')}</select>
+      <button type="button" class="btn sm" data-a="del">Excluir</button></div>`}
+    s+=`<div class="row"><span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}>Desfazer</button></div>
+      <button type="button" class="btn ok" data-a="conf"${pend.length?'':' disabled'}>Confirmar adição${pend.length?` (${pend.length})`:''}</button>`;
+  }
+  $('#panel').innerHTML=s;
+}
+$('#panel').addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,m=marksOf(cur);
+  if(a==='nova'){mode='nova';sel=null;renderDw()}
+  else if(a==='cat')openCat();
+  else if(a==='undo'){const s=undo.pop();if(s){st.marks[cur]=JSON.parse(s);sel=null;save();renderDw()}}
+  else if(a==='del'){pushUndo();const x=m.find(q=>q.id===sel.id);if(x){st.marks[cur]=m.filter(q=>q!==x&&!(x.pilha===0&&q.grp===x.grp&&q.st==='pend'))}sel=null;save();renderDw()}
+  else if(a==='conf'){const n=m.filter(x=>x.st==='pend');n.forEach(x=>{x.st='conf';x.t=new Date().toISOString()});undo=[];sel=null;mode='ind';save();renderDw();toast(`${n.length} suporte${n.length>1?'s':''} adicionado${n.length>1?'s':''} ao arquivo final`)}
+  else if(a==='unconf'){const x=m.find(q=>q.id===sel.id);if(x)st.marks[cur]=m.filter(q=>q!==x&&!(x.pilha===0&&q.grp===x.grp));sel=null;save();renderDw();toast('Removido do arquivo final')}
+});
+$('#panel').addEventListener('change',e=>{const s=e.target.closest('select[data-a="code"]');if(!s)return;pushUndo();const x=marksOf(cur).find(q=>q.id===sel.id);if(x)x.code=s.value;save();renderDw()});
+$('#mInd').onclick=()=>{mode='ind';sel=null;renderDw()};
+$('#mNova').onclick=()=>{mode='nova';sel=null;renderDw()};
+$('#tog').onchange=renderOv;
+
+function openCat(){$('#catBg').hidden=false;$('#catQ').value='';renderCat();}
+function renderCat(){const q=$('#catQ').value.trim().toLowerCase();
+  $('#catList').innerHTML=P().pk.catalogo.filter(c=>!q||(c.codigo+' '+c.tag).toLowerCase().includes(q)).map(c=>`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===st.code?'on':''}"><span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`).join('')||'<p class="note" style="padding:8px">Nenhum suporte com esse código.</p>'}
+$('#catQ').addEventListener('input',renderCat);
+$('#catList').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(!b)return;st.code=b.dataset.c;save();$('#catBg').hidden=true;renderDw()});
+$('#catClose').onclick=()=>$('#catBg').hidden=true;
+$('#catBg').addEventListener('click',e=>{if(e.target.id==='catBg')$('#catBg').hidden=true});
+
+let tt;function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,2400)}
+
+/* ---------- escritor de .zip (sem compressão, sem biblioteca) ---------- */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC[(c^u8[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+function criarZip(arquivos){ // [{nome, dados:Uint8Array}]
+  const te=new TextEncoder(),partes=[],central=[];let off=0;
+  const d=new Date(),dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF,dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  for(const a of arquivos){
+    const nm=te.encode(a.nome),crc=crc32(a.dados),n=a.dados.length;
+    const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
+    h.setUint16(10,dt,true);h.setUint16(12,dd,true);h.setUint32(14,crc,true);h.setUint32(18,n,true);h.setUint32(22,n,true);h.setUint16(26,nm.length,true);h.setUint16(28,0,true);
+    partes.push(new Uint8Array(h.buffer),nm,a.dados);
+    const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);
+    c.setUint16(12,dt,true);c.setUint16(14,dd,true);c.setUint32(16,crc,true);c.setUint32(20,n,true);c.setUint32(24,n,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nm);off+=30+nm.length+n;
+  }
+  const tamCentral=central.reduce((s,x)=>s+x.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,arquivos.length,true);e.setUint16(10,arquivos.length,true);e.setUint32(12,tamCentral,true);e.setUint32(16,off,true);
+  return new Blob([...partes,...central,new Uint8Array(e.buffer)],{type:'application/zip'});
+}
+
+/* ---------- arquivo final ---------- */
+function loadImg(src){return new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src})}
+async function folhaComposta(p,conf){
+  // iPhone recusa canvas acima de ~16,7 Mpx: reduz a folha se passar disso
+  const f=p.pk.folha,im=await loadImg(p.folha),k=Math.min(1,Math.sqrt(16e6/(f.larguraPx*f.alturaPx))),mm=f.mmPorPixel/k,c=document.createElement('canvas');
+  c.width=Math.floor(f.larguraPx*k);c.height=Math.floor(f.alturaPx*k);
+  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+  const tp=(X,Y)=>[(X-f.minX)/mm,(f.maxY-Y)/mm],r=p.pk.balao.raioMm/mm,fs=p.pk.balao.alturaTextoMm/mm*1.3;
+  const bal=(cx,cy,code,stroke,fill,txt)=>{x.beginPath();x.arc(cx,cy,r,0,7);x.fillStyle=fill;x.fill();x.lineWidth=Math.max(1.5,r*.09);x.strokeStyle=stroke;x.stroke();
+    x.fillStyle=txt;x.font=`500 ${fs}px 'IBM Plex Mono',monospace`;x.textAlign='center';x.textBaseline='middle';x.fillText(code,cx,cy+fs*.04)};
+  const lead=(bx,by,ax,ay,col)=>{const dx=ax-bx,dy=ay-by,L=Math.hypot(dx,dy)||1;if(L<=r)return;const ux=-dx/L,uy=-dy/L,h=r*.55,w=r*.2,qx=ax+ux*h,qy=ay+uy*h;
+    x.strokeStyle=col;x.fillStyle=col;x.lineWidth=Math.max(1.2,r*.07);x.beginPath();x.moveTo(bx+dx/L*r,by+dy/L*r);x.lineTo(ax,ay);x.stroke();
+    x.beginPath();x.moveTo(ax,ay);x.lineTo(qx-uy*w,qy+ux*w);x.lineTo(qx+uy*w,qy-ux*w);x.closePath();x.fill()};
+  p.pk.suportesExistentes.forEach(e=>{const[bx,by]=tp(...e.centro);if(e.seta){const[ax,ay]=tp(...e.seta);lead(bx,by,ax,ay,'#1d2530')}bal(bx,by,e.codigo,'#1d2530','#fff','#1d2530')});
+  conf.forEach(m=>{const[bx,by]=tp(m.bx,m.by);if(m.pilha===0){const[ax,ay]=tp(m.ax,m.ay);lead(bx,by,ax,ay,'#1C8A4B')}bal(bx,by,m.code,'#1C8A4B','#E1F3E8','#13633A')});
+  return await new Promise(ok=>c.toBlob(b=>ok(b),'image/png'));
+}
+function retorno(){
+  return{formato:'milplan-campo-suportes-retorno/1',responsavel:st.resp||null,finalizadoEm:new Date().toISOString(),
+    desenhos:pacotes.map(p=>({arquivo:p.key,novos:marksOf(p.key).filter(m=>m.st==='conf').sort((a,b)=>a.grp-b.grp||a.pilha-b.pilha)
+      .map(m=>({codigo:m.code,seta:[m.ax,m.ay],balao:[m.bx,m.by],pilha:m.pilha,marcadoEm:m.t}))})).filter(d=>d.novos.length)};
+}
+const nomeArq=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'');
+function carimboData(){const d=new Date();return`${d.getFullYear()}${pad(d.getMonth()+1,2)}${pad(d.getDate(),2)}-${pad(d.getHours(),2)}${pad(d.getMinutes(),2)}`}
+
+let envio=null; // {zip:File, folhas:[File], urls:[...]}
+async function openFinal(){
+  show('scrFin');$('#ttl').textContent='Arquivo final';$('#sub').textContent='O que foi adicionado neste levantamento';
+  const alt=pacotes.filter(p=>marksOf(p.key).some(m=>m.st==='conf'));
+  let tot=0,kg=0;alt.forEach(p=>marksOf(p.key).filter(m=>m.st==='conf').forEach(m=>{tot++;kg+=p.cat[m.code]?p.cat[m.code].pesoKg:0}));
+  const pendTot=Object.values(st.marks).reduce((a,m)=>a+m.filter(x=>x.st==='pend').length,0);
+  let s=`<div><h2>Arquivo final</h2><p class="note">${esc(st.resp||'Responsável não informado')} · ${new Date().toLocaleString('pt-BR')}</p></div>
+   <div class="tiles"><div class="tile"><span class="l">Desenhos alterados</span><span class="v">${alt.length}</span></div><div class="tile"><span class="l">Suportes novos</span><span class="v" style="color:var(--ok)">${tot}</span></div><div class="tile"><span class="l">Peso adicionado</span><span class="v mono" style="font-size:22px">${fmtKg(kg)} kg</span></div></div>`;
+  if(!st.resp)s+=`<p class="info">Preencha o <b>responsável em campo</b> na tela inicial antes de enviar.</p>`;
+  if(pendTot)s+=`<p class="info">${pendTot} marcação(ões) ainda sem confirmar não entram no arquivo final.</p>`;
+  if(!alt.length)s+=`<p class="info">Nenhum suporte novo confirmado ainda. Abra um desenho, use <b>Nova marcação</b> e toque em <b>Confirmar adição</b>.</p>`;
+  if(alt.length)s+=`<section class="send"><h3>Enviar para o projetista</h3>
+      <p class="note">Vai um arquivo <span class="mono">.zip</span> (o plugin lê ele e coloca os balões no desenho) e uma imagem de cada folha alterada, para conferir na conversa.</p>
+      <button class="btn wa" type="button" id="share" disabled>Preparando arquivos…</button>
+      <div class="row"><a class="btn sm" id="dl" hidden>Baixar o .zip</a><span class="note grow" id="shareNote"></span></div>
+      <div id="novoWrap" hidden><button class="btn sm" type="button" id="novo">Começar novo levantamento</button></div></section>`;
+  alt.forEach((p,i)=>{const conf=marksOf(p.key).filter(m=>m.st==='conf'),grp={};conf.forEach(m=>{grp[m.code]=(grp[m.code]||0)+1});let sk=0;
+    const rows=Object.keys(grp).sort().map(c=>{const it=p.cat[c]||{tag:'?',pesoKg:0},t=it.pesoKg*grp[c];sk+=t;return`<tr><td class="mono">${esc(c)}</td><td class="n">${grp[c]}</td><td class="mono">${esc(it.tag)}</td><td class="n">${fmtKg(it.pesoKg)}</td><td class="n">${fmtKg(t)}</td></tr>`}).join('');
+    s+=`<section class="block"><div><h3>${esc(p.pk.desenho.nome)}</h3><div class="sub">${esc(p.key)}</div></div>
+      <figure class="prev"><div class="cap"><span>Folha com os novos suportes (em verde)</span><span>A1</span></div><img id="fol${i}" alt="Folha ${esc(p.pk.desenho.nome)} com as marcações"></figure>
+      <div class="tbl"><table><thead><tr><th>Item</th><th class="n">Qtde</th><th>Descrição</th><th class="n">Peso unit.</th><th class="n">Peso total</th></tr></thead><tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="4">Total adicionado</td><td class="n">${fmtKg(sk)}</td></tr></tfoot></table></div></section>`});
+  $('#fin').innerHTML=s;
+  if(envio){envio.urls.forEach(u=>URL.revokeObjectURL(u));envio=null}
+  if(!alt.length)return;
+
+  // monta os arquivos: retorno .zip (retorno.json + folhas/*.png) + as folhas soltas
+  const ret=retorno(),quem=nomeArq(st.resp||'campo')||'campo',tag=carimboData(),folhas=[],urls=[],entradas=[];
+  entradas.push({nome:'retorno.json',dados:new TextEncoder().encode(JSON.stringify(ret,null,2))});
+  for(let i=0;i<alt.length;i++){
+    try{const b=await folhaComposta(alt[i],marksOf(alt[i].key).filter(m=>m.st==='conf'));
+      const nome=nomeArq(alt[i].pk.desenho.nome)+'-campo.png',u=URL.createObjectURL(b);urls.push(u);$('#fol'+i).src=u;
+      folhas.push(new File([b],nome,{type:'image/png'}));entradas.push({nome:'folhas/'+nome,dados:new Uint8Array(await b.arrayBuffer())});
+    }catch(e){console.warn('folha',e)}
+  }
+  const zipNome=`RETORNO-CAMPO-${quem}-${tag}.zip`,zip=new File([criarZip(entradas)],zipNome,{type:'application/zip'}),zu=URL.createObjectURL(zip);urls.push(zu);
+  envio={zip,folhas,urls};
+  const dl=$('#dl');dl.href=zu;dl.download=zipNome;dl.hidden=false;
+  const sh=$('#share');sh.disabled=false;sh.textContent='Enviar pelo WhatsApp';
+  sh.onclick=enviar;
+}
+async function enviar(){
+  const note=$('#shareNote');note.textContent='';
+  if(!envio)return;
+  const tentativas=[[envio.zip,...envio.folhas],[envio.zip]];
+  if(!navigator.share){note.textContent='Este navegador não compartilha arquivos. Use “Baixar o .zip” e envie pelo WhatsApp.';return}
+  for(const files of tentativas){
+    if(navigator.canShare&&!navigator.canShare({files}))continue;
+    try{
+      await navigator.share({files,title:'Levantamento de suportes',text:`Levantamento de suportes${st.resp?' – '+st.resp:''} (${totalConf()} novos)`});
+      // marca como enviados (some o alerta da tela inicial); continuam no
+      // aparelho até "Começar novo levantamento"
+      const agora=new Date().toISOString();Object.values(st.marks).forEach(ms=>ms.forEach(m=>{if(m.st==='conf'&&!m.enviado)m.enviado=agora}));save();
+      note.textContent='Arquivos enviados.';$('#novoWrap').hidden=false;return;
+    }catch(e){
+      if(e&&e.name==='AbortError'){note.textContent='Envio cancelado.';return}
+    }
+  }
+  note.textContent='O celular não deixou compartilhar esses arquivos. Use “Baixar o .zip” e anexe no WhatsApp.';
+}
+$('#fin').addEventListener('click',e=>{
+  if(e.target.id==='novo'){const b=e.target;
+    if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Tocar de novo para apagar os confirmados';b.classList.add('danger');return}
+    Object.keys(st.marks).forEach(k=>{st.marks[k]=st.marks[k].filter(m=>m.st!=='conf')});save();toast('Pronto para um novo levantamento');openFinal()}
+});
+$('#goFinal').onclick=openFinal;
+
+/* ---------- início ---------- */
+async function iniciar(){
+  try{const todos=await dbTodos();for(const r of todos||[])addPacote(r.pk,URL.createObjectURL(r.area),URL.createObjectURL(r.folha))}catch(e){console.warn('sem armazenamento local',e)}
+  // Android: .campo.zip compartilhado do WhatsApp direto pro app ("share
+  // target" do manifest) -- o service worker guarda o arquivo e reabre a
+  // página; aqui ele é importado e apagado da fila
+  try{
+    if('caches'in window){const c=await caches.open('compartilhados'),ks=await c.keys();
+      if(ks.length){const lista=[];for(const k of ks){const r=await c.match(k);lista.push({nome:decodeURIComponent(r.headers.get('x-nome')||'pacote.zip'),buf:await r.arrayBuffer()});await c.delete(k)}
+        await importarArquivos(lista)}}
+  }catch(e){console.warn('compartilhado',e)}
+  if(new URLSearchParams(location.search).has('compartilhado'))history.replaceState(null,'',location.pathname);
+  // ?pacote=<endereço de um .campo.zip> -- carrega direto (teste/distribuição por link)
+  const u=new URLSearchParams(location.search).get('pacote');
+  if(u){busy('Baixando desenhos…');try{const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);history.replaceState(null,'',location.pathname);await importarArquivos([{nome:u.split('/').pop(),buf:await r.arrayBuffer()}])}catch(e){busy(null);$('#zipErr').textContent='Não consegui baixar o pacote: '+e.message;$('#zipErr').hidden=false}}
+  renderHome();setTitle();
+}
+iniciar();
+if('serviceWorker'in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>

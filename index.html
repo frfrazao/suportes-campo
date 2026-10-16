@@ -586,6 +586,11 @@ function renderOv(){
     if(m.pilha===0)s+=leaderSVG(bx,by,ax,ay,r,'ld-'+cls);
     s+=balloonSVG(bx,by,m.code,cls,r,fs);
   });
+  // arrasto bloqueado: contorno vermelho onde o dedo está (o balão fica na última posição livre)
+  if(arrasto&&arrasto.bloqueado){
+    for(let k=0;k<arrasto.n;k++){const[gx,gy]=toPx(arrasto.cx,arrasto.cy+k*2*R());
+      s+=`<circle cx="${gx}" cy="${gy}" r="${r}" fill="rgba(194,53,43,.12)" stroke="#C2352B" stroke-width="${lw*1.3}" stroke-dasharray="${r*.35} ${r*.25}"/>`}
+  }
   ov.innerHTML=s;
 }
 
@@ -593,11 +598,29 @@ function renderOv(){
 const ptrs=new Map();let g=null;
 canvas.addEventListener('pointerdown',e=>{
   if(e.target.closest('.ov'))return;
-  canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  try{canvas.setPointerCapture(e.pointerId)}catch(_){}ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size===2){const[a,b]=[...ptrs.values()];g={t:'pinch',d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
   if(ptrs.size>2)return;
   g={t:'tap',sx:e.clientX,sy:e.clientY,tx:V.tx,ty:V.ty,moved:false};
+  // começou em cima de um balão NOVO (visível neste modo)? arrastar move o balão em vez da planta
+  if(cur&&P()){const[x,y]=screenToW(e.clientX,e.clientY),r=R();
+    const alvo=marksOf(cur).filter(m=>mode==='ind'?m.st==='conf':m.st==='pend').reverse().find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15);
+    if(alvo){const b0=grupoBase(alvo.grp);g.arrasto={grp:alvo.grp,x0:x,y0:y,bx0:b0.bx,by0:b0.by}}}
 });
+// pedido do usuario: "uma forma de mover os balões adicionados, e não permitir
+// que eles se choquem com outros balões" -- arrastar move o balão (a pilha
+// inteira, se tiver); a ponta da seta fica no ponto marcado em campo
+let arrasto=null;
+function grupoBase(grp){const ms=marksOf(cur).filter(m=>m.grp===grp);return ms.find(m=>m.pilha===0)||ms[0]}
+function moverGrupo(grp,bx,by){const r=R();marksOf(cur).forEach(m=>{if(m.grp===grp){m.bx=Math.round(bx);m.by=Math.round(by+m.pilha*2*r)}})}
+function arrastarPara(cx,cy){
+  const a=g.arrasto,[x,y]=screenToW(cx,cy),bx=a.bx0+(x-a.x0),by=a.by0+(y-a.y0),n=marksOf(cur).filter(m=>m.grp===a.grp).length;
+  if(!arrasto){pushUndo();arrasto={grp:a.grp,n}}
+  arrasto.cx=bx;arrasto.cy=by;
+  if(grupoLivre(bx,by,n,a.grp)){moverGrupo(a.grp,bx,by);arrasto.bloqueado=false}
+  else arrasto.bloqueado=true;
+  renderOv();
+}
 canvas.addEventListener('pointermove',e=>{
   if(cur&&P()){const[x,y]=screenToW(e.clientX,e.clientY);$('#readout').textContent=`X ${Math.round(x)} · Y ${Math.round(y)}`}
   if(!ptrs.has(e.pointerId)||!g)return;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -605,11 +628,20 @@ canvas.addEventListener('pointermove',e=>{
     V.tx+=mx-g.mx;V.ty+=my-g.my;zoomAt(mx,my,d/g.d);g.d=d;g.mx=mx;g.my=my;return}
   if(g.t!=='tap')return;
   const dx=e.clientX-g.sx,dy=e.clientY-g.sy;if(!g.moved&&Math.hypot(dx,dy)>8)g.moved=true;
-  if(g.moved){V.tx=g.tx+dx;V.ty=g.ty+dy;applyV()}
+  if(!g.moved)return;
+  // no máximo ~60 atualizações/s (redesenhar 500 balões a cada evento pesa em celular simples)
+  if(g.arrasto){const t=performance.now();if(!g.ult||t-g.ult>16){g.ult=t;arrastarPara(e.clientX,e.clientY)}return}
+  V.tx=g.tx+dx;V.ty=g.ty+dy;applyV();
 });
 function endP(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(!g)return;
   if(g.t==='pinch'){g=ptrs.size?{t:'none'}:null;return}
-  if(g.t==='tap'&&!g.moved&&e.type==='pointerup')tap(e.clientX,e.clientY);
+  if(g.t==='tap'&&g.arrasto&&g.moved){
+    if(e.type==='pointerup')arrastarPara(e.clientX,e.clientY);
+    const bloq=arrasto&&arrasto.bloqueado;arrasto=null;
+    sel={t:'m',id:(marksOf(cur).find(m=>m.grp===g.arrasto.grp&&m.pilha===0)||{}).id};
+    save();renderDw();if(bloq)toast('Ali encosta em outro balão: ficou na última posição livre');
+  }
+  else if(g.t==='tap'&&!g.moved&&e.type==='pointerup')tap(e.clientX,e.clientY);
   if(!ptrs.size)g=null}
 canvas.addEventListener('pointerup',endP);canvas.addEventListener('pointercancel',endP);
 canvas.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,Math.exp(-e.deltaY*.0015))},{passive:false});
@@ -626,9 +658,12 @@ function tap(cx,cy){
     if(hitM){ // empilha no mesmo ponto, como no "Adicionar suporte"
       const base=ms.filter(m=>m.grp===hitM.grp),top=Math.max(...base.map(m=>m.pilha)),b0=base.find(m=>m.pilha===0);
       const m={id:++uid,grp:hitM.grp,code:st.code,ax:b0.ax,ay:b0.ay,bx:b0.bx,by:b0.by+(top+1)*2*r,pilha:top+1,st:'pend',t:new Date().toISOString()};
-      marksOf(cur).push(m);sel={t:'m',id:m.id};toast(`Suporte ${st.code} empilhado`);
+      marksOf(cur).push(m);sel={t:'m',id:m.id};
+      // pilha maior encostaria em outro balão? leva a pilha inteira pra' um lugar livre
+      if(!grupoLivre(b0.bx,b0.by,top+2,hitM.grp)){const[nx,ny]=place(b0.ax,b0.ay,top+2,hitM.grp);moverGrupo(hitM.grp,nx,ny);toast(`Suporte ${st.code} empilhado (pilha afastada de outro balão)`)}
+      else toast(`Suporte ${st.code} empilhado`);
     }else{
-      const[bx,by]=place(x,y);const id=++uid;
+      const[bx,by]=place(x,y,1,null);const id=++uid;
       marksOf(cur).push({id,grp:id,code:st.code,ax:Math.round(x),ay:Math.round(y),bx,by,pilha:0,st:'pend',t:new Date().toISOString()});sel={t:'m',id};
       if(navigator.vibrate)try{navigator.vibrate(15)}catch(_){}
     }
@@ -639,13 +674,25 @@ function tap(cx,cy){
     sel=bd<=r*1.15?{t:'ex',i:best}:null}
   renderDw();
 }
-// centro do balão: primeira posição livre ao redor do ponto (diagonais, distâncias crescentes)
-function place(ax,ay){
-  const p=P(),r=R(),a=A(),cent=[...p.pk.suportesExistentes.map(e=>e.centro),...marksOf(cur).map(m=>[m.bx,m.by])];
-  for(const d of [3.2,4.6,6.2])for(const[sx,sy] of [[1,1],[-1,1],[1,-1],[-1,-1]]){
-    const bx=ax+sx*d*r*.7071,by=ay+sy*d*r*.7071;
-    if(bx<a.minX+r||bx>a.maxX-r||by<a.minY+r||by>a.maxY-r*3)continue;
-    if(cent.every(c=>Math.hypot(c[0]-bx,c[1]-by)>r*2.3))return[Math.round(bx),Math.round(by)];
+// centros de todos os balões ocupando espaço (indicados + novos), menos os do grupo informado
+function ocupados(excluirGrp){
+  const l=P().pk.suportesExistentes.map(e=>e.centro);
+  marksOf(cur).forEach(m=>{if(m.grp!==excluirGrp)l.push([m.bx,m.by])});return l;
+}
+// uma pilha de n balões com base em (bx,by) cabe sem encostar em nenhum outro e dentro da planta?
+function grupoLivre(bx,by,n,excluirGrp){
+  const r=R(),a=A(),min=2*r*1.04,occ=ocupados(excluirGrp);
+  if(bx<a.minX+r||bx>a.maxX-r||by<a.minY+r||by+(n-1)*2*r>a.maxY-r)return false;
+  for(let k=0;k<n;k++){const cy=by+k*2*r;if(occ.some(c=>Math.hypot(c[0]-bx,c[1]-cy)<min))return false}
+  return true;
+}
+// centro do balão (base da pilha): primeira posição livre ao redor do ponto,
+// em 8 direções e distâncias crescentes -- nunca encosta em outro balão
+function place(ax,ay,n,excluirGrp){
+  const r=R();n=n||1;
+  for(const d of [3.2,4.6,6.2,8,10,12.5,15.5,19])for(let k=0;k<8;k++){
+    const ang=Math.PI/4+k*Math.PI/4,bx=ax+Math.cos(ang)*d*r,by=ay+Math.sin(ang)*d*r;
+    if(grupoLivre(bx,by,n,excluirGrp))return[Math.round(bx),Math.round(by)];
   }
   return[Math.round(ax+3.2*r*.7071),Math.round(ay+3.2*r*.7071)];
 }

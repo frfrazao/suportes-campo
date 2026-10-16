@@ -205,6 +205,7 @@ tfoot td{font-weight:600;border-bottom:0}
         <input id="zipIn" type="file" accept=".zip,application/zip,application/x-zip-compressed,application/octet-stream" multiple hidden>
       </div>
       <p class="err" id="zipErr" hidden></p>
+      <section class="bkp" id="syncSec"></section>
       <section class="bkp">
         <h3>Cópia de segurança das marcações</h3>
         <p class="note">As marcações ficam só neste celular. Antes de trocar de aparelho, limpar o navegador ou se o envio não der certo, salve uma cópia e guarde no WhatsApp ou no Drive.</p>
@@ -394,6 +395,96 @@ function renderHome(){
   renderBadge();
 }
 $('#alerta').addEventListener('click',e=>{if(e.target.closest('[data-go-final]'))openFinal()});
+
+/* ---------- atualização automática dos desenhos ---------- */
+// pedido do usuario: "preciso atualizar por aqui e não enviar um arquivo de
+// atualização pelo celular do operador". O plugin publica o pacote num
+// repositório PRIVADO do GitHub (campo/indice.json + campo/pacote.campo.zip);
+// o app lê com uma chave de SOMENTE LEITURA e se atualiza sozinho ao abrir.
+const SYNC_KEY='milplan-campo-sync',REPO_PADRAO='frfrazao/suportes-campo-dados';
+let sync={};try{sync=JSON.parse(localStorage.getItem(SYNC_KEY))||{}}catch(e){}
+const salvarSync=()=>{try{localStorage.setItem(SYNC_KEY,JSON.stringify(sync))}catch(e){}};
+let syncMsg='',syncRodando=false;
+function apiGh(caminho){return fetch(`https://api.github.com/repos/${sync.repo}/contents/${caminho}`,{cache:'no-store',
+  headers:{Authorization:`Bearer ${sync.token}`,Accept:'application/vnd.github.raw','X-GitHub-Api-Version':'2022-11-28'}})}
+function erroGh(r){return r.status===401?'a chave de acesso é inválida ou venceu. Peça uma nova ao projetista.'
+  :r.status===403?'acesso negado (chave sem permissão ou limite de uso). Tente mais tarde.'
+  :r.status===404?'ainda não há desenhos publicados (ou a chave não dá acesso ao repositório).':`erro ${r.status} do servidor.`}
+async function verificarAtualizacao(manual){
+  if(!sync.token||syncRodando)return;
+  if(!navigator.onLine){if(manual){syncMsg='Sem internet agora. O app tenta de novo quando a conexão voltar.';renderSync()}return}
+  syncRodando=true;syncMsg='Verificando…';renderSync();
+  try{
+    const ri=await apiGh('campo/indice.json');if(!ri.ok)throw new Error(erroGh(ri));
+    const ind=await ri.json();sync.verificadoEm=new Date().toISOString();
+    if(ind.versao===sync.versao){syncMsg='Desenhos em dia.';salvarSync();return}
+    busy('Baixando desenhos atualizados…');$('#zipErr').hidden=true;
+    const rp=await apiGh(ind.arquivo||'campo/pacote.campo.zip');if(!rp.ok)throw new Error(erroGh(rp));
+    const buf=await rp.arrayBuffer();
+    // desenho que saiu do pacote publicado: sai do aparelho ANTES de importar
+    // (senão uma revisão que o projetista desfez bloquearia a anterior), a não
+    // ser que tenha marcação não enviada
+    const lista=new Set((ind.desenhos||[]).map(d=>String(d).toUpperCase()));const avisos=[];
+    if(lista.size)for(const p of pacotes.slice())if(!lista.has(p.pk.desenho.nome.toUpperCase())){
+      if(temMarcas(p.key))avisos.push(`${p.pk.desenho.nome} não está mais no pacote, mas ficou porque tem marcações não enviadas.`);
+      else await removerPacote(p.key)}
+    const r=await importarZip(buf);avisos.push(...r.avisos);
+    sync.versao=ind.versao;sync.publicadoEm=ind.publicadoEm||null;salvarSync();
+    syncMsg=`Desenhos atualizados: ${r.n} desenho(s).`;
+    if(avisos.length){$('#zipErr').innerHTML=avisos.map(esc).join('<br>');$('#zipErr').hidden=false}
+    toast('Desenhos atualizados');renderHome();
+  }catch(e){syncMsg='Não consegui atualizar: '+e.message}
+  finally{syncRodando=false;busy(null);renderSync()}
+}
+function fmtVersao(v){if(!v)return'—';const d=new Date(v);return isNaN(d)?v:`${d.toLocaleDateString('pt-BR')} ${hhmm(d)}`}
+function renderSync(){
+  const el=$('#syncSec');if(!el)return;
+  if(sync.token){
+    el.innerHTML=`<h3>Atualização automática ligada</h3>
+      <p class="note">Os desenhos são atualizados sozinhos quando o app abre com internet. Versão no aparelho: <b>${esc(fmtVersao(sync.versao))}</b>.</p>
+      <div class="row"><button class="btn sm" type="button" data-sync="agora"${syncRodando?' disabled':''}>Verificar agora</button>
+      <button class="btn sm" type="button" data-sync="link">Link para outro celular</button>
+      <button class="btn ghost sm" type="button" data-sync="desligar">Desligar</button></div>
+      <p class="note" id="syncMsg">${esc(syncMsg)}</p><div id="syncLink"></div>`;
+  }else{
+    el.innerHTML=`<h3>Atualização automática</h3>
+      <p class="note">Com a chave de acesso do projetista, os desenhos chegam sozinhos ao abrir o app, sem precisar abrir arquivo do WhatsApp.</p>
+      <div class="field"><label for="syncToken">Chave de acesso</label><input id="syncToken" type="password" autocomplete="off" placeholder="github_pat_…"></div>
+      <div class="row"><button class="btn primary sm" type="button" data-sync="salvar">Ligar atualização</button></div>
+      <p class="note" id="syncMsg">${esc(syncMsg)}</p>`;
+  }
+}
+$('#syncSec').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-sync]');if(!b)return;const a=b.dataset.sync;
+  if(a==='salvar'){const t=$('#syncToken').value.trim();if(!t){syncMsg='Cole a chave de acesso.';renderSync();return}
+    sync={repo:REPO_PADRAO,token:t};salvarSync();syncMsg='';await verificarAtualizacao(true)}
+  else if(a==='agora')await verificarAtualizacao(true);
+  else if(a==='desligar'){if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Tocar de novo para desligar';return}
+    sync={};salvarSync();syncMsg='Atualização automática desligada.';renderSync()}
+  else if(a==='link'){
+    // link de configuração (a chave vai depois do "#", que não sai do celular nem chega ao servidor)
+    const cfg=btoa(JSON.stringify({r:sync.repo,t:sync.token})).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const url=`${location.origin}${location.pathname}#config=${cfg}`;
+    $('#syncLink').innerHTML=`<p class="note">Mande este link uma vez para o celular do operador. Ao abrir, a atualização automática liga sozinha. Quem tiver o link consegue ver os desenhos: não compartilhe em grupos.</p>
+      <div class="row"><input class="grow" id="syncLinkTxt" readonly value="${esc(url)}" style="min-height:40px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);min-width:0"><button class="btn sm" type="button" data-sync="copiar">Copiar</button></div>`;
+  }
+  else if(a==='copiar'){const i=$('#syncLinkTxt');try{await navigator.clipboard.writeText(i.value);b.textContent='Copiado'}catch(_){i.select();b.textContent='Selecionado'}}
+});
+// link de configuração aberto no celular do operador: #config=<base64url {r,t}>
+function lerLinkConfig(){
+  const m=/[#&]config=([A-Za-z0-9_-]+)/.exec(location.hash);if(!m)return false;
+  try{const s=m[1].replace(/-/g,'+').replace(/_/g,'/'),j=JSON.parse(atob(s+'==='.slice((s.length+3)%4)));
+    if(j.t){sync={repo:j.r||REPO_PADRAO,token:j.t};salvarSync();syncMsg='Atualização automática ligada por link.'}}
+  catch(e){syncMsg='Link de configuração inválido.'}
+  history.replaceState(null,'',location.pathname);return true;
+}
+// link aberto com o app já aberto (só o "#" muda, a página não recarrega)
+window.addEventListener('hashchange',()=>{if(lerLinkConfig()){renderSync();verificarAtualizacao(true)}});
+window.addEventListener('online',()=>verificarAtualizacao(false));
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'||!sync.token)return;
+  const ult=Date.parse(sync.verificadoEm||0)||0;if(Date.now()-ult>10*60e3)verificarAtualizacao(false);
+});
 
 /* ---------- cópia de segurança das marcações ---------- */
 function bkpArquivo(){
@@ -744,7 +835,9 @@ async function iniciar(){
   // ?pacote=<endereço de um .campo.zip> -- carrega direto (teste/distribuição por link)
   const u=new URLSearchParams(location.search).get('pacote');
   if(u){busy('Baixando desenhos…');try{const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);history.replaceState(null,'',location.pathname);await importarArquivos([{nome:u.split('/').pop(),buf:await r.arrayBuffer()}])}catch(e){busy(null);$('#zipErr').textContent='Não consegui baixar o pacote: '+e.message;$('#zipErr').hidden=false}}
-  renderHome();setTitle();
+  lerLinkConfig();
+  renderHome();setTitle();renderSync();
+  verificarAtualizacao(false);
 }
 iniciar();
 if('serviceWorker'in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});

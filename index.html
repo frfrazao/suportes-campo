@@ -146,6 +146,18 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 .sheet input{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
 .cat{overflow:auto;display:grid;gap:2px;align-content:start}
 .cat button{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;padding:7px 8px;border:0;border-radius:8px;background:transparent;min-height:52px}
+.cat button.com-foto{grid-template-columns:92px 36px minmax(0,1fr) auto}
+.foto-mini{width:92px;height:76px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:6px}
+.foto-btn{flex:none;padding:0;border:1px solid var(--line);border-radius:8px;background:#fff;line-height:0}
+.foto-btn img{width:64px;height:56px;object-fit:contain;border-radius:8px}
+.foto-bg{position:fixed;inset:0;z-index:45;background:rgba(10,14,20,.6);display:flex;align-items:center;justify-content:center;padding:12px}
+.foto-box{width:min(720px,100%);max-height:calc(100% - 24px);background:var(--surface);border-radius:12px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}
+.foto-box .h{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.foto-box .h b{font-family:var(--f-mono);font-weight:500}
+.foto-area{overflow:auto;background:#fff;touch-action:pan-x pan-y pinch-zoom}
+.foto-area img{display:block;width:100%;height:auto;max-width:none}
+.foto-area.zoom img{width:250%}
+.foto-box .p{padding:8px 12px;font-size:13px;color:var(--muted)}
 .cat button.on{background:var(--ok-bg)}
 .cat .c{font-family:var(--f-mono);font-weight:500;font-size:17px;text-align:center}
 .cat .k{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
@@ -251,6 +263,13 @@ tfoot td{font-weight:600;border-bottom:0}
     <div class="cat" id="catList"></div>
   </div>
 </div>
+<div class="foto-bg" id="fotoBg" hidden>
+  <div class="foto-box" role="dialog" aria-label="Desenho do suporte">
+    <div class="h"><span class="mini" id="fotoCod">01</span><div class="meta grow"><b id="fotoTag"></b><small id="fotoInfo"></small></div><button class="btn sm" type="button" id="fotoFechar">Fechar</button></div>
+    <div class="foto-area" id="fotoArea"><img id="fotoImg" alt="Desenho do suporte"></div>
+    <p class="p" id="fotoDica">Toque no desenho para ampliar.</p>
+  </div>
+</div>
 <div class="toast" id="toast" hidden></div>
 <div class="busy" id="busy" hidden><div id="busyTxt">Carregando…</div></div>
 
@@ -267,8 +286,15 @@ function busy(t){$('#busyTxt').textContent=t||'';$('#busy').hidden=!t}
 // pacotes ficam guardados com as imagens -- o funcionário abre o .zip uma vez
 // e o desenho continua no app depois de fechar, sem internet.
 const DB_NOME='milplan-campo',DB_STORE='pacotes';
-function abrirDb(){return new Promise((ok,no)=>{try{const r=indexedDB.open(DB_NOME,1);r.onupgradeneeded=()=>r.result.createObjectStore(DB_STORE,{keyPath:'key'});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}catch(e){no(e)}})}
-async function dbTx(modo,fn){const db=await abrirDb();return new Promise((ok,no)=>{const tx=db.transaction(DB_STORE,modo),st=tx.objectStore(DB_STORE);const r=fn(st);tx.oncomplete=()=>ok(r&&r.result);tx.onerror=()=>no(tx.error)})}
+// v2: store "fotos" (desenho de cada suporte, recortado do PDF oficial pelo plugin)
+function abrirDb(){return new Promise((ok,no)=>{try{const r=indexedDB.open(DB_NOME,2);r.onupgradeneeded=()=>{const db=r.result;
+  if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE,{keyPath:'key'});
+  if(!db.objectStoreNames.contains('fotos'))db.createObjectStore('fotos',{keyPath:'codigo'})};
+  r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}catch(e){no(e)}})}
+async function dbTx(modo,fn,store){const db=await abrirDb();store=store||DB_STORE;return new Promise((ok,no)=>{const tx=db.transaction(store,modo),st=tx.objectStore(store);const r=fn(st);tx.oncomplete=()=>ok(r&&r.result);tx.onerror=()=>no(tx.error)})}
+// fotos dos suportes: código -> {url, tag}
+const fotos={};
+function addFoto(codigo,tag,blob){if(fotos[codigo])try{URL.revokeObjectURL(fotos[codigo].url)}catch(_){}fotos[codigo]={url:URL.createObjectURL(blob),tag}}
 const dbTodos=()=>dbTx('readonly',s=>s.getAll());
 const dbGravar=v=>dbTx('readwrite',s=>s.put(v));
 const dbApagar=k=>dbTx('readwrite',s=>s.delete(k));
@@ -333,6 +359,14 @@ async function importarZip(buf){
       if(temMarcas(velho.key))avisos.push(`${velho.pk.desenho.nome} tem marcações não enviadas: envie antes de remover. As novas marcações vão na ${pk.desenho.nome}.`);
       else{await removerPacote(velho.key);avisos.push(`${velho.pk.desenho.nome} foi trocado pela ${pk.desenho.nome}.`)}
     }
+  }
+  // fotos dos suportes (uma vez por .zip, valem pra' todos os desenhos)
+  if(z['suportes/fotos.json']){
+    try{const fj=JSON.parse(new TextDecoder().decode(z['suportes/fotos.json']));
+      for(const[cod,f]of Object.entries(fj.fotos||{})){const d=z['suportes/'+f.arquivo];if(!d)continue;
+        const blob=new Blob([d],{type:'image/png'});addFoto(cod,f.tag,blob);
+        try{await dbTx('readwrite',st=>st.put({codigo:cod,tag:f.tag,blob}),'fotos')}catch(e){console.warn('foto',e)}}
+    }catch(e){console.warn('fotos do pacote',e)}
   }
   return{n,avisos};
 }
@@ -654,9 +688,14 @@ function tap(cx,cy){
   if(mode==='nova'){
     // toque em cima de um balão já existente (indicado ou novo confirmado):
     // não marca ali -- a marcação nova nunca fica por cima das antigas
-    if(!hitM){const sobre=[...p.pk.suportesExistentes.map(e=>e.centro),...marksOf(cur).filter(m=>m.st==='conf').map(m=>[m.bx,m.by])]
-      .some(c=>Math.hypot(c[0]-x,c[1]-y)<=r*1.05);
-      if(sobre){toast('Aí já tem um balão. Toque no ponto do suporte, fora dos balões.');return}}
+    // pedido do usuario: "ao selecionar a planta para fazer marcação e clicar
+    // sobre um balão de suporte já adicionado na planta, apareça a foto do
+    // desenho do suporte" -- e não marca ali (marcação nova não fica por cima)
+    if(!hitM){
+      const ie=p.pk.suportesExistentes.findIndex(e=>Math.hypot(e.centro[0]-x,e.centro[1]-y)<=r*1.05);
+      if(ie>=0){sel={t:'ex',i:ie};renderDw();abrirFoto(p.pk.suportesExistentes[ie].codigo,'Já indicado no desenho');return}
+      const mc=marksOf(cur).find(m=>m.st==='conf'&&Math.hypot(m.bx-x,m.by-y)<=r*1.05);
+      if(mc){sel={t:'m',id:mc.id};renderDw();abrirFoto(mc.code,'Novo, já confirmado');return}}
     pushUndo();
     if(hitM){ // empilha no mesmo ponto, como no "Adicionar suporte"
       const base=ms.filter(m=>m.grp===hitM.grp),top=Math.max(...base.map(m=>m.pilha)),b0=base.find(m=>m.pilha===0);
@@ -676,6 +715,8 @@ function tap(cx,cy){
   else{let best=-1,bd=1e18;p.pk.suportesExistentes.forEach((e,i)=>{const d=Math.hypot(e.centro[0]-x,e.centro[1]-y);if(d<bd){bd=d;best=i}});
     sel=bd<=r*1.15?{t:'ex',i:best}:null}
   renderDw();
+  if(sel&&sel.t==='ex')abrirFoto(p.pk.suportesExistentes[sel.i].codigo,'Já indicado no desenho');
+  else if(sel&&sel.t==='m'&&hitM)abrirFoto(hitM.code,'Novo, já confirmado');
 }
 // centros de todos os balões ocupando espaço (indicados + novos), menos os do grupo informado
 function ocupados(excluirGrp){
@@ -728,18 +769,18 @@ function renderDw(){
   $('#mInd').textContent=`Indicados (${p.pk.suportesExistentes.length+conf.length})`;
   $('#mNova').textContent=pend.length?`Nova marcação (${pend.length})`:'Nova marcação';
   const h=$('#hint');h.className='ov hint'+(mode==='nova'?' nova':'');
-  h.textContent=mode==='nova'?'Toque onde o suporte foi montado (fora dos balões). Tocar num balão azul empilha outro no mesmo ponto.':'Toque num balão para ver o suporte.';h.hidden=false;
+  h.textContent=mode==='nova'?'Toque onde o suporte foi montado. Balão azul: toque empilha outro. Balão já marcado: toque mostra o desenho do suporte.':'Toque num balão para ver o desenho do suporte.';h.hidden=false;
   setTitle();renderOv();renderBadge();
   let s='';const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
   if(mode==='ind'){
     s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}</div>`;
-    if(se){const c=catOf(se.codigo);s+=`<div class="selcard"><span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div></div>`}
-    if(sm){const c=catOf(sm.code);s+=`<div class="selcard"><span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button></div>`}
+    if(se){const c=catOf(se.codigo);s+=`<div class="selcard">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div></div>`}
+    if(sm){const c=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button></div>`}
     s+=`<button type="button" class="btn ok" data-a="nova">${pend.length?`Continuar nova marcação (${pend.length})`:'Nova marcação'}</button>`;
   }else{
     const c=catOf(st.code);
-    s+=`<button type="button" class="cur" data-a="cat"><span class="mini ok">${esc(c.codigo)}</span><span class="meta"><b>${esc(c.tag)}</b><small>${fmtKg(c.pesoKg)} kg · toque para trocar o suporte</small></span><span aria-hidden="true">›</span></button>`;
-    if(sm){const cc=catOf(sm.code);s+=`<div class="selcard"><span class="mini ac">${esc(sm.code)}</span><div class="meta grow"><b>${esc(cc.tag)}</b><small>${sm.pilha?`Empilhado (${sm.pilha+1}º no ponto)`:'Com linha de chamada'}</small></div>
+    s+=`<div class="row" style="flex-wrap:nowrap">${fotoBtn(c.codigo)}<button type="button" class="cur" data-a="cat"><span class="mini ok">${esc(c.codigo)}</span><span class="meta"><b>${esc(c.tag)}</b><small>${fmtKg(c.pesoKg)} kg · toque para trocar o suporte</small></span><span aria-hidden="true">›</span></button></div>`;
+    if(sm){const cc=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ac">${esc(sm.code)}</span><div class="meta grow"><b>${esc(cc.tag)}</b><small>${sm.pilha?`Empilhado (${sm.pilha+1}º no ponto)`:'Com linha de chamada'}</small></div>
       <select data-a="code" aria-label="Trocar código">${p.pk.catalogo.map(x=>`<option value="${esc(x.codigo)}"${x.codigo===sm.code?' selected':''}>${esc(x.codigo)}</option>`).join('')}</select>
       <button type="button" class="btn sm" data-a="del">Excluir</button></div>`}
     s+=`<div class="row"><span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}>Desfazer</button></div>
@@ -761,8 +802,26 @@ $('#mInd').onclick=()=>{mode='ind';sel=null;renderDw()};
 $('#mNova').onclick=()=>{mode='nova';sel=null;renderDw()};
 
 function openCat(){$('#catBg').hidden=false;$('#catQ').value='';renderCat();}
+// pedido do usuario: "ao clicar sobre um balão de suporte já adicionado na
+// planta, apareça a foto do desenho do suporte" -- desenho recortado da
+// moldura do M447-ELE-SUP-000 (chega no pacote, ver SuporteFotos no plugin)
+function fotoBtn(codigo){const f=fotos[codigo];return f?`<button type="button" class="foto-btn" data-foto="${esc(codigo)}" aria-label="Ver desenho do suporte ${esc(codigo)}"><img src="${f.url}" alt=""></button>`:''}
+function abrirFoto(codigo,info){
+  const c=catOf(codigo),f=fotos[codigo];
+  $('#fotoCod').textContent=codigo;$('#fotoTag').textContent=c.tag||(f&&f.tag)||'';
+  $('#fotoInfo').textContent=(info?info+' · ':'')+(c.pesoKg?fmtKg(c.pesoKg)+' kg':'');
+  const a=$('#fotoArea');a.classList.remove('zoom');
+  if(f){$('#fotoImg').src=f.url;$('#fotoImg').hidden=false;$('#fotoDica').textContent='Toque no desenho para ampliar.'}
+  else{$('#fotoImg').hidden=true;$('#fotoDica').textContent='Desenho deste suporte ainda não veio no pacote. Peça ao projetista para exportar de novo.'}
+  $('#fotoBg').hidden=false;
+}
+$('#fotoFechar').onclick=()=>$('#fotoBg').hidden=true;
+$('#fotoBg').addEventListener('click',e=>{if(e.target.id==='fotoBg')$('#fotoBg').hidden=true});
+$('#fotoArea').addEventListener('click',()=>$('#fotoArea').classList.toggle('zoom'));
+document.addEventListener('click',e=>{const b=e.target.closest('[data-foto]');if(!b)return;e.stopPropagation();abrirFoto(b.dataset.foto)},true);
+
 function renderCat(){const q=$('#catQ').value.trim().toLowerCase();
-  $('#catList').innerHTML=P().pk.catalogo.filter(c=>!q||(c.codigo+' '+c.tag).toLowerCase().includes(q)).map(c=>`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===st.code?'on':''}"><span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`).join('')||'<p class="note" style="padding:8px">Nenhum suporte com esse código.</p>'}
+  $('#catList').innerHTML=P().pk.catalogo.filter(c=>!q||(c.codigo+' '+c.tag).toLowerCase().includes(q)).map(c=>`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===st.code?'on':''}${fotos[c.codigo]?' com-foto':''}">${fotos[c.codigo]?`<img class="foto-mini" loading="lazy" src="${fotos[c.codigo].url}" alt="Ver desenho do ${esc(c.codigo)}" data-foto="${esc(c.codigo)}">`:''}<span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`).join('')||'<p class="note" style="padding:8px">Nenhum suporte com esse código.</p>'}
 $('#catQ').addEventListener('input',renderCat);
 $('#catList').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(!b)return;st.code=b.dataset.c;save();$('#catBg').hidden=true;renderDw()});
 $('#catClose').onclick=()=>$('#catBg').hidden=true;
@@ -890,6 +949,7 @@ $('#goFinal').onclick=openFinal;
 /* ---------- início ---------- */
 async function iniciar(){
   try{const todos=await dbTodos();for(const r of todos||[])addPacote(r.pk,URL.createObjectURL(r.area),URL.createObjectURL(r.folha))}catch(e){console.warn('sem armazenamento local',e)}
+  try{const fs=await dbTx('readonly',st=>st.getAll(),'fotos');for(const f of fs||[])addFoto(f.codigo,f.tag,f.blob)}catch(e){console.warn('sem fotos',e)}
   // Android: .campo.zip compartilhado do WhatsApp direto pro app ("share
   // target" do manifest) -- o service worker guarda o arquivo e reabre a
   // página; aqui ele é importado e apagado da fila

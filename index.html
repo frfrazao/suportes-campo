@@ -243,6 +243,15 @@ tfoot td{font-weight:600;border-bottom:0}
 .card .kg{grid-column:1 / -1;font-size:13.5px;color:var(--muted)}
 .card .kg b{font-family:var(--f-mono);font-weight:500;color:var(--fg)}
 .card .kg b.ok{color:var(--ok)}
+.sheet.hist{grid-template-rows:auto minmax(0,1fr)}
+.hlist{overflow:auto;display:grid;gap:8px;align-content:start}
+.hrev{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:6px}
+.hrev.atual{border-color:var(--ok);background:var(--ok-bg)}
+.hrev .top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.hrev .top b{font-family:var(--f-display);font-size:17px}
+.hrev .kg{font-family:var(--f-mono);font-weight:500;margin-left:auto}
+.hrev .dif{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.hrev ul{margin:0;padding-left:18px;font-size:14px;display:grid;gap:3px}
 .toast button{margin-left:12px;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-decoration:underline;padding:4px 2px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .busy{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(10,14,20,.35)}
@@ -323,6 +332,12 @@ tfoot td{font-weight:600;border-bottom:0}
     <div class="h"><h3>Escolher suporte</h3><button class="btn sm" type="button" id="catClose">Fechar</button></div>
     <input id="catQ" type="search" placeholder="Buscar código ou tag">
     <div class="cat" id="catList"></div>
+  </div>
+</div>
+<div class="sheet-bg" id="histBg" hidden>
+  <div class="sheet hist" role="dialog" aria-label="Histórico de revisões">
+    <div class="h"><h3 id="histTit">Revisões</h3><button class="btn sm" type="button" id="histClose">Fechar</button></div>
+    <div class="hlist" id="histList"></div>
   </div>
 </div>
 <div class="sheet-bg" id="achaBg" hidden>
@@ -574,7 +589,7 @@ function renderHome(){
     return`<div class="card est-${d.est}"><button type="button" class="open" data-k="${esc(p.key)}"><span class="n">${esc(p.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span><span class="f">${esc(p.pk.desenho.arquivo)}</span></button>
       <div class="acts"><button type="button" class="btn primary sm" data-k="${esc(p.key)}">Abrir</button></div>
       <div class="kg">Peso no desenho <b>${fmtKg(kgInd+kgNovo)} kg</b>${kgNovo?` · <b class="ok">+${fmtKg(kgNovo)} kg</b> neste levantamento`:''}</div>
-      <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${d.aEnviar?`<span class="chip warn">${d.aEnviar} a enviar</span>`:d.enviados?`<span class="chip ok">Enviado ${dataHora(d.ultEnvio)}</span>`:''}${d.aberto?'':'<span class="chip mut">Não aberto</span>'}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}${notasEx(p.key).length?`<span class="chip warn">${notasEx(p.key).length} ocorrência${notasEx(p.key).length>1?'s':''}</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
+      <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}${(ri=>ri?`<span class="chip">Rev. ${ri.atual.rev}${ri.atual.data?' · '+esc(dataCurta(ri.atual.data)):''}</span>${ri.nova?`<span class="chip warn">Existe Rev. ${ri.nova.rev}</span>`:''}`:'')(revInfo(p))}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${d.aEnviar?`<span class="chip warn">${d.aEnviar} a enviar</span>`:d.enviados?`<span class="chip ok">Enviado ${dataHora(d.ultEnvio)}</span>`:''}${d.aberto?'':'<span class="chip mut">Não aberto</span>'}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}${notasEx(p.key).length?`<span class="chip warn">${notasEx(p.key).length} ocorrência${notasEx(p.key).length>1?'s':''}</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
   if(!lista.length)$('#cards').innerHTML='<div class="empty">Nenhum desenho neste filtro.</div>';
   renderBadge();
 }
@@ -713,6 +728,24 @@ $('#cards').addEventListener('click',async e=>{
   const r=e.target.closest('[data-rm]');if(r){await removerPacote(r.dataset.rm);confirmando=null;renderHome();toast('Desenho removido do aparelho')}
 });
 $('#resp').addEventListener('input',e=>{st.resp=e.target.value;save()});
+
+/* ---------- histórico de revisões ---------- */
+// pedido do usuario: "agora faz o 4" -- o pacote leva as revisões do desenho
+// (data, peso, o que mudou); dá pra' conferir em campo se o desenho do
+// celular é o atual
+const histDe=p=>(p.pk.historico||[]).slice().sort((a,b)=>a.rev-b.rev);
+const dataCurta=iso=>{if(!iso)return'';const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})};
+function revInfo(p){const h=histDe(p);if(!h.length)return null;const atual=h.find(r=>r.noPacote)||h[h.length-1],ult=h[h.length-1];
+  return{atual,ult,nova:ult.rev>atual.rev?ult:null,total:h.length}}
+function abrirHist(){const p=P();if(!p)return;const h=histDe(p);
+  $('#histTit').textContent=`Revisões · ${p.pk.desenho.nome.replace('M447-ELE-SUP-','')}`;
+  $('#histList').innerHTML=h.length?h.slice().reverse().map((r,i,arr)=>{const ant=h[h.indexOf(r)-1];const dif=ant?r.pesoKg-ant.pesoKg:null;
+    return`<div class="hrev${r.noPacote?' atual':''}"><div class="top"><b>Rev. ${r.rev}</b><span class="note">${esc(dataCurta(r.data))}</span>${r.noPacote?'<span class="chip ok">No celular</span>':''}<span class="kg">${fmtKg(r.pesoKg)} kg</span>${dif!==null?`<span class="dif">(${dif>=0?'+':'−'}${fmtKg(Math.abs(dif))} kg)</span>`:''}</div>
+      ${ant?(r.alteracoes&&r.alteracoes.length?`<ul>${r.alteracoes.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>`:'<p class="note">Sem alteração nos suportes.</p>'):'<p class="note">Emissão inicial.</p>'}</div>`}).join('')
+    :'<p class="note" style="padding:8px">Este pacote não trouxe o histórico de revisões. Peça ao projetista para exportar de novo.</p>';
+  $('#histBg').hidden=false}
+$('#histClose').onclick=()=>$('#histBg').hidden=true;
+$('#histBg').addEventListener('click',e=>{if(e.target.id==='histBg')$('#histBg').hidden=true});
 
 /* ---------- localizar suporte na planta ---------- */
 // pedido do usuario: "'Onde está o suporte X?': escolher um código e o app
@@ -1071,6 +1104,7 @@ function renderDw(){
   if(mode==='ind'){
     const noc=notasEx(cur).length;
     s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}${noc?` · <b style="color:var(--warn)">${noc}</b> com ocorrência`:''}</div>`;
+    {const ri=revInfo(p);if(ri)s+=`<div class="row"><span class="kgline grow">Revisão no celular <b>Rev. ${ri.atual.rev}</b>${ri.atual.data?` de ${esc(dataCurta(ri.atual.data))}`:''}${ri.nova?` · <b style="color:var(--warn)">existe Rev. ${ri.nova.rev}</b>`:''}</span><button type="button" class="btn sm" data-a="hist">Histórico (${ri.total})</button></div>`}
     {const ki=pesoIndicados(p),kn=pesoMarcas(p,x=>x.st==='conf');s+=`<div class="kgline">Peso no desenho <b>${fmtKg(ki+kn)} kg</b>${kn?` · <b class="ok">+${fmtKg(kn)} kg</b> novos`:''}</div>`}
     if(!se&&!sm)s+=`<p class="note">Toque num balão para ver o desenho do suporte, marcar se ele <b>não foi montado</b> ou foi <b>alterado</b>, escrever uma observação ou tirar foto.</p>`;
     if(se){const c=catOf(se.codigo);s+=`<div class="selcard">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div>${notaHtml({t:'ex',i:sel.i},exOf(cur)[exKey(se,sel.i)],true)}</div>`}
@@ -1097,6 +1131,7 @@ $('#panel').addEventListener('click',e=>{
   const fc=e.target.closest('[data-fc]');if(fc){abrirFotoCampo(fc.dataset.fc);return}
   const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,m=marksOf(cur);
   const alvo=sel&&(sel.t==='m'?{t:'m',id:sel.id}:{t:'ex',i:sel.i});
+  if(a==='hist'){abrirHist();return}
   if(a==='ach-prev'){irAchado(-1);return}
   if(a==='ach-next'){irAchado(1);return}
   if(a==='ach-todos'){busca.i=-1;verAchados();renderDw();return}

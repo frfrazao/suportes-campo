@@ -2,7 +2,7 @@
 // abrir sem internet (em campo o sinal só existe em alguns lugares).
 // Desenhos e marcações NÃO passam por aqui -- ficam no IndexedDB/localStorage
 // da própria página. Troque VERSAO a cada publicação pra' forçar atualização.
-const VERSAO = 'suportes-campo-v11';
+const VERSAO = 'suportes-campo-v12';
 const ARQUIVOS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

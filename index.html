@@ -233,6 +233,16 @@ tfoot td{font-weight:600;border-bottom:0}
 .achabar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1.5px solid #E8590C;border-radius:10px;background:rgba(232,89,12,.08)}
 .achabar .grow{min-width:120px}
 .achabar .nav{min-width:44px;font-size:20px;padding:0 10px}
+.kgline{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.kgline b{font-family:var(--f-mono);font-weight:500;color:var(--fg)}
+.kgline b.ok{color:var(--ok)}
+.mats{display:grid;gap:0}
+.mats div{display:flex;justify-content:space-between;gap:10px;padding:5px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.mats div span:last-child{font-family:var(--f-mono);white-space:nowrap}
+.mats div.t{font-weight:700;border-bottom:0}
+.card .kg{grid-column:1 / -1;font-size:13.5px;color:var(--muted)}
+.card .kg b{font-family:var(--f-mono);font-weight:500;color:var(--fg)}
+.card .kg b.ok{color:var(--ok)}
 .toast button{margin-left:12px;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-decoration:underline;padding:4px 2px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .busy{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(10,14,20,.35)}
@@ -347,6 +357,23 @@ tfoot td{font-weight:600;border-bottom:0}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmtKg=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+// pedido do usuario: "agora faz o 3" -- peso no app: peso de cada desenho, peso
+// adicionado no levantamento e o total por material. A composição de cada
+// suporte (material -> kg das peças) vem no pacote (suportes/composicao.json,
+// do SuportesComposicao.xlsx do plugin) e fica guardada no aparelho.
+const KEY_COMP='milplan-campo-comp';
+let comp={};try{comp=JSON.parse(localStorage.getItem(KEY_COMP)||'{}')||{}}catch(e){comp={}}
+// peso de n suportes do código c (peso do catálogo do pacote), dividido por material
+function somaMateriais(acc,c,n,pesoKg){const kg=n*(pesoKg||0);if(kg<=0)return acc;
+  const m=(comp[c]&&comp[c].materiais)||null,tot=m?Object.values(m).reduce((a,v)=>a+v,0):0;
+  if(!m||tot<=0){acc['Sem composição']=(acc['Sem composição']||0)+kg;return acc}
+  for(const[k,v]of Object.entries(m))acc[k]=(acc[k]||0)+kg*v/tot;return acc}
+const pesoIndicados=p=>p.pk.suportesExistentes.reduce((a,e)=>a+(p.cat[e.codigo]?p.cat[e.codigo].pesoKg:0),0);
+const pesoMarcas=(p,f)=>marksOf(p.key).filter(f).reduce((a,m)=>a+(p.cat[m.code]?p.cat[m.code].pesoKg:0),0);
+function materiaisDe(lista){const acc={};lista.forEach(([p,ms])=>{const n={};ms.forEach(m=>n[m.code]=(n[m.code]||0)+1);
+  for(const[c,q]of Object.entries(n))somaMateriais(acc,c,q,p.cat[c]?p.cat[c].pesoKg:0)});return acc}
+function matsHtml(acc,titTotal){const l=Object.entries(acc).filter(([,v])=>v>=.005).sort((a,b)=>b[1]-a[1]);if(!l.length)return'';
+  return`<div class="mats">${l.map(([k,v])=>`<div><span>${esc(k)}</span><span>${fmtKg(v)} kg</span></div>`).join('')}${titTotal?`<div class="t"><span>${esc(titTotal)}</span><span>${fmtKg(l.reduce((a,[,v])=>a+v,0))} kg</span></div>`:''}</div>`}
 const pad=(n,k)=>String(n).padStart(k,'0');
 const hhmm=d=>pad(d.getHours(),2)+':'+pad(d.getMinutes(),2);
 function busy(t){$('#busyTxt').textContent=t||'';$('#busy').hidden=!t}
@@ -431,6 +458,12 @@ async function importarZip(buf){
       else{await removerPacote(velho.key);avisos.push(`${velho.pk.desenho.nome} foi trocado pela ${pk.desenho.nome}.`)}
     }
   }
+  // composição dos suportes (material de cada um) -- peso por material
+  if(z['suportes/composicao.json']){
+    try{const cj=JSON.parse(new TextDecoder().decode(z['suportes/composicao.json']));
+      if(cj&&cj.suportes){comp=cj.suportes;try{localStorage.setItem(KEY_COMP,JSON.stringify(comp))}catch(_){}}}
+    catch(e){console.warn('composição do pacote',e)}
+  }
   // fotos dos suportes (uma vez por .zip, valem pra' todos os desenhos)
   if(z['suportes/fotos.json']){
     try{const fj=JSON.parse(new TextDecoder().decode(z['suportes/fotos.json']));
@@ -514,6 +547,7 @@ function renderProg(sits){
   const el=$('#prog');if(!pacotes.length){el.hidden=true;return}
   const n=pacotes.length,ab=sits.filter(d=>d.aberto).length,env=sits.filter(d=>d.est==='enviado').length,
     pend=sits.filter(d=>d.est==='enviar'||d.est==='pend').length,
+    kgAdic=pacotes.reduce((a,p)=>a+pesoMarcas(p,x=>x.st==='conf'),0),
     tConf=sits.reduce((a,d)=>a+d.conf,0),tEnv=sits.reduce((a,d)=>a+d.aEnviar,0),tPe=sits.reduce((a,d)=>a+d.pe,0),tOc=sits.reduce((a,d)=>a+d.ex,0);
   const pc=v=>(v/n*100).toFixed(1)+'%';
   if(!FILTROS[filtro]||(filtro!=='todos'&&!sits.some(FILTROS[filtro][1])))filtro='todos';
@@ -522,6 +556,7 @@ function renderProg(sits){
       <i style="width:${pc(env)};background:var(--ok)"></i><i style="width:${pc(pend)};background:var(--warn)"></i><i style="width:${pc(Math.max(0,ab-env-pend))};background:var(--accent)"></i></div>
     <div class="nums"><div><b style="color:var(--ok)">${tConf}</b><span>Novos confirm.</span></div><div><b style="color:var(--warn)">${tEnv}</b><span>A enviar</span></div>
       <div><b style="color:var(--accent)">${tPe}</b><span>Sem confirmar</span></div><div><b>${tOc}</b><span>Ocorrências</span></div></div>
+    <div class="kgline">Peso adicionado no levantamento <b class="ok">+${fmtKg(kgAdic)} kg</b> · total dos desenhos <b>${fmtKg(pacotes.reduce((a,p)=>a+pesoIndicados(p)+pesoMarcas(p,x=>x.st==='conf'),0))} kg</b></div>
     <div class="filtros" role="group" aria-label="Filtrar desenhos">${Object.entries(FILTROS).map(([k,[t,f]])=>{const c=sits.filter(f).length;
       return k==='todos'||c?`<button type="button" data-f="${k}" class="${filtro===k?'on':''}" aria-pressed="${filtro===k}">${t} (${c})</button>`:''}).join('')}</div>`;
   el.hidden=false;
@@ -535,8 +570,10 @@ function renderHome(){
   const lista=pacotes.filter(p=>FILTROS[filtro][1](sits.get(p.key)));
   $('#cards').innerHTML=lista.map(p=>{const m=marksOf(p.key),c=m.filter(x=>x.st==='conf').length,pe=m.filter(x=>x.st==='pend').length,sub=substitutoDe(p),d=sits.get(p.key);
     const conf=confirmando===p.key?`<div class="confirm"><span class="grow">Tirar este desenho do aparelho${c+pe?` e apagar ${c+pe} marcação(ões)`:''}?</span><button class="btn sm danger" type="button" data-rm="${esc(p.key)}">Remover</button><button class="btn sm" type="button" data-cancel>Cancelar</button></div>`:'';
+    const kgInd=pesoIndicados(p),kgNovo=pesoMarcas(p,x=>x.st==='conf');
     return`<div class="card est-${d.est}"><button type="button" class="open" data-k="${esc(p.key)}"><span class="n">${esc(p.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span><span class="f">${esc(p.pk.desenho.arquivo)}</span></button>
       <div class="acts"><button type="button" class="btn primary sm" data-k="${esc(p.key)}">Abrir</button></div>
+      <div class="kg">Peso no desenho <b>${fmtKg(kgInd+kgNovo)} kg</b>${kgNovo?` · <b class="ok">+${fmtKg(kgNovo)} kg</b> neste levantamento`:''}</div>
       <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${d.aEnviar?`<span class="chip warn">${d.aEnviar} a enviar</span>`:d.enviados?`<span class="chip ok">Enviado ${dataHora(d.ultEnvio)}</span>`:''}${d.aberto?'':'<span class="chip mut">Não aberto</span>'}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}${notasEx(p.key).length?`<span class="chip warn">${notasEx(p.key).length} ocorrência${notasEx(p.key).length>1?'s':''}</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
   if(!lista.length)$('#cards').innerHTML='<div class="empty">Nenhum desenho neste filtro.</div>';
   renderBadge();
@@ -1034,6 +1071,7 @@ function renderDw(){
   if(mode==='ind'){
     const noc=notasEx(cur).length;
     s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}${noc?` · <b style="color:var(--warn)">${noc}</b> com ocorrência`:''}</div>`;
+    {const ki=pesoIndicados(p),kn=pesoMarcas(p,x=>x.st==='conf');s+=`<div class="kgline">Peso no desenho <b>${fmtKg(ki+kn)} kg</b>${kn?` · <b class="ok">+${fmtKg(kn)} kg</b> novos`:''}</div>`}
     if(!se&&!sm)s+=`<p class="note">Toque num balão para ver o desenho do suporte, marcar se ele <b>não foi montado</b> ou foi <b>alterado</b>, escrever uma observação ou tirar foto.</p>`;
     if(se){const c=catOf(se.codigo);s+=`<div class="selcard">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div>${notaHtml({t:'ex',i:sel.i},exOf(cur)[exKey(se,sel.i)],true)}</div>`}
     if(sm){const c=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
@@ -1049,6 +1087,7 @@ function renderDw(){
     if(sm){const cc=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ac">${esc(sm.code)}</span><div class="meta grow"><b>${esc(cc.tag)}</b><small>${sm.pilha?`Empilhado (${sm.pilha+1}º no ponto)`:'Com linha de chamada'}</small></div>
       <select data-a="code" aria-label="Trocar código">${p.pk.catalogo.map(x=>`<option value="${esc(x.codigo)}"${x.codigo===sm.code?' selected':''}>${esc(x.codigo)}</option>`).join('')}</select>
       <button type="button" class="btn sm" data-a="del">Excluir</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
+    if(pend.length)s+=`<div class="kgline">Esta marcação soma <b class="ok">+${fmtKg(pesoMarcas(p,x=>x.st==='pend'))} kg</b></div>`;
     s+=`<div class="row"><span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}${undo.length?` title="Desfazer: ${esc(undo[undo.length-1].txt)}"`:''}>Desfazer</button></div>
       <button type="button" class="btn ok" data-a="conf"${pend.length?'':' disabled'}>Confirmar adição${pend.length?` (${pend.length})`:''}</button>`;
   }
@@ -1195,6 +1234,8 @@ async function openFinal(){
   let s=`<div><h2>Arquivo final</h2><p class="note">${esc(st.resp||'Responsável não informado')} · ${new Date().toLocaleString('pt-BR')}</p></div>
    <div class="tiles"><div class="tile"><span class="l">Desenhos alterados</span><span class="v">${alt.length}</span></div><div class="tile"><span class="l">Suportes novos</span><span class="v" style="color:var(--ok)">${tot}</span></div><div class="tile"><span class="l">Peso adicionado</span><span class="v mono" style="font-size:22px">${fmtKg(kg)} kg</span></div>${nNao?`<div class="tile"><span class="l">Não montados</span><span class="v" style="color:var(--bad)">${nNao}</span></div>`:''}${nAlt?`<div class="tile"><span class="l">Alterados</span><span class="v" style="color:var(--warn)">${nAlt}</span></div>`:''}${nOc?`<div class="tile"><span class="l">Com obs./foto</span><span class="v">${nOc}</span></div>`:''}</div>`;
   if(pendTot)s+=`<p class="info">${pendTot} marcação(ões) ainda sem confirmar não entram no arquivo final.</p>`;
+  {const mg=materiaisDe(alt.map(p=>[p,marksOf(p.key).filter(m=>m.st==='conf')]));
+    if(Object.keys(mg).length)s+=`<section class="block"><h3>Peso adicionado por material</h3>${matsHtml(mg,'Total adicionado')}${mg['Sem composição']?'<p class="note">"Sem composição": suporte sem material cadastrado no pacote. Peça ao projetista para exportar de novo.</p>':''}</section>`}
   if(!alt.length)s+=`<p class="info">Nada para enviar ainda: nenhum suporte novo confirmado nem ocorrência registrada. Abra um desenho, use <b>Nova marcação</b> e toque em <b>Confirmar adição</b>.</p>`;
   if(alt.length)s+=`<section class="send"><h3>Enviar para o projetista</h3>
       <p class="note">Vai um arquivo <span class="mono">.zip</span> (o plugin lê ele, coloca os balões no desenho e monta o relatório com as observações e fotos) e uma imagem de cada folha alterada, para conferir na conversa.</p>
@@ -1207,7 +1248,8 @@ async function openFinal(){
     s+=`<section class="block"><div><h3>${esc(p.pk.desenho.nome)}</h3><div class="sub">${esc(p.key)}</div></div>
       <figure class="prev"><div class="cap"><span>Novos em verde · não montado em vermelho · alterado em laranja</span><span>A1</span></div><img id="fol${i}" alt="Folha ${esc(p.pk.desenho.nome)} com as marcações"></figure>
       ${rows?`<div class="tbl"><table><thead><tr><th>Item</th><th class="n">Qtde</th><th>Descrição</th><th class="n">Peso unit.</th><th class="n">Peso total</th></tr></thead><tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="4">Total adicionado</td><td class="n">${fmtKg(sk)}</td></tr></tfoot></table></div>`:''}
+      <tfoot><tr><td colspan="4">Total adicionado</td><td class="n">${fmtKg(sk)}</td></tr></tfoot></table></div>
+      <details><summary class="note">Por material</summary>${matsHtml(materiaisDe([[p,conf]]),'')}</details>`:''}
       ${(oc=>oc.length?`<div class="ocs"><h4>Ocorrências e observações</h4>${oc.map(o=>`<div class="oc"><span class="mini ${o.cls}">${esc(o.cod)}</span><div class="meta grow"><b>${esc(o.tit)}</b>${o.obs&&o.obs.trim()?`<small>${esc(o.obs)}</small>`:''}</div>${o.fotos.length?`<div class="thumbs">${o.fotos.map(id=>fotosCampo[id]?`<a href="${fotosCampo[id]}" target="_blank" rel="noopener"><img src="${fotosCampo[id]}" alt="Foto do campo"></a>`:'').join('')}</div>`:''}</div>`).join('')}</div>`:'')(ocorrencias(p))}</section>`});
   $('#fin').innerHTML=s;
   if(envio){envio.urls.forEach(u=>URL.revokeObjectURL(u));envio=null}

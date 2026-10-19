@@ -184,6 +184,20 @@ td{padding:7px 8px;border-bottom:1px solid var(--line)}
 td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
 tfoot td{font-weight:600;border-bottom:0}
 .info{background:var(--warn-bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;margin:0}
+.lupa{position:fixed;z-index:30;width:150px;height:150px;border-radius:50%;overflow:hidden;pointer-events:none;border:3px solid var(--ok);box-shadow:0 6px 20px rgba(0,0,0,.35);background:#fff}
+.lupa .in{position:absolute;left:0;top:0;transform-origin:0 0}
+.lupa .in img{display:block;width:100%;height:100%;max-width:none;background:#fff}
+.lupa .in svg{position:absolute;inset:0;width:100%;height:100%}
+.lupa::before,.lupa::after{content:"";position:absolute;background:#C2352B;z-index:1}
+.lupa::before{left:50%;top:22%;bottom:22%;width:2px;margin-left:-1px}
+.lupa::after{top:50%;left:22%;right:22%;height:2px;margin-top:-1px}
+.canvas{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+.recentes{display:flex;gap:6px;align-items:center;overflow-x:auto;padding-bottom:2px}
+.recentes .lbl{font-size:12.5px;color:var(--muted);flex:none}
+.recentes button{flex:none;min-width:44px;height:38px;padding:0 10px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-family:var(--f-mono);font-weight:500;font-size:15px;color:var(--fg)}
+.recentes button.on{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.cat .sec{font-size:12.5px;color:var(--muted);padding:6px 8px 2px;font-family:var(--f-display);font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.toast button{margin-left:12px;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-decoration:underline;padding:4px 2px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .busy{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(10,14,20,.35)}
 .busy div{background:var(--surface);padding:14px 18px;border-radius:10px;font-family:var(--f-display);font-weight:600;font-size:16px}
@@ -270,6 +284,7 @@ tfoot td{font-weight:600;border-bottom:0}
     <p class="p" id="fotoDica">Toque no desenho para ampliar.</p>
   </div>
 </div>
+<div class="lupa" id="lupa" hidden><div class="in" id="lupaIn"></div></div>
 <div class="toast" id="toast" hidden></div>
 <div class="busy" id="busy" hidden><div id="busyTxt">Carregando…</div></div>
 
@@ -388,7 +403,7 @@ $('#zipIn').addEventListener('change',async e=>{
 
 /* ---------- estado (marcações ficam no aparelho) ---------- */
 const KEY='milplan-campo-v1';
-let st={resp:'',code:null,marks:{}};
+let st={resp:'',code:null,marks:{},recentes:[]};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.marks)st=Object.assign(st,s)}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
 const marksOf=k=>(st.marks[k]=st.marks[k]||[]);
@@ -631,9 +646,13 @@ const ptrs=new Map();let g=null;
 canvas.addEventListener('pointerdown',e=>{
   if(e.target.closest('.ov'))return;
   try{canvas.setPointerCapture(e.pointerId)}catch(_){}ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(ptrs.size===2){const[a,b]=[...ptrs.values()];g={t:'pinch',d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
+  if(ptrs.size===2){fecharLupa();if(g)clearTimeout(g.timer);const[a,b]=[...ptrs.values()];g={t:'pinch',d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
   if(ptrs.size>2)return;
   g={t:'tap',sx:e.clientX,sy:e.clientY,tx:V.tx,ty:V.ty,moved:false};
+  // pedido do usuario: "a lupa ao tocar" -- na nova marcação, segurar o dedo
+  // parado abre uma lupa acima dele com a mira; arrastar move a mira e soltar
+  // marca ali. Toque rápido continua marcando direto; arrastar rápido move a planta.
+  if(mode==='nova'&&ptrs.size===1){const gg=g;gg.timer=setTimeout(()=>{if(g===gg&&g.t==='tap'&&!g.moved&&!g.arrasto&&ptrs.size===1){g.t='lupa';abrirLupa(g.sx,g.sy)}},260)}
   // começou em cima de um balão NOVO (visível neste modo)? arrastar move o balão em vez da planta
   if(cur&&P()){const[x,y]=screenToW(e.clientX,e.clientY),r=R();
     const alvo=marksOf(cur).filter(m=>mode==='ind'?m.st==='conf':m.st==='pend').reverse().find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15);
@@ -647,7 +666,7 @@ function grupoBase(grp){const ms=marksOf(cur).filter(m=>m.grp===grp);return ms.f
 function moverGrupo(grp,bx,by){const r=R();marksOf(cur).forEach(m=>{if(m.grp===grp){m.bx=Math.round(bx);m.by=Math.round(by+m.pilha*2*r)}})}
 function arrastarPara(cx,cy){
   const a=g.arrasto,[x,y]=screenToW(cx,cy),bx=a.bx0+(x-a.x0),by=a.by0+(y-a.y0),n=marksOf(cur).filter(m=>m.grp===a.grp).length;
-  if(!arrasto){pushUndo();arrasto={grp:a.grp,n}}
+  if(!arrasto){pushUndo('mover balão');arrasto={grp:a.grp,n}}
   arrasto.cx=bx;arrasto.cy=by;
   if(grupoLivre(bx,by,n,a.grp)){moverGrupo(a.grp,bx,by);arrasto.bloqueado=false}
   else arrasto.bloqueado=true;
@@ -658,6 +677,7 @@ canvas.addEventListener('pointermove',e=>{
   if(!ptrs.has(e.pointerId)||!g)return;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(g.t==='pinch'){if(ptrs.size<2)return;const[a,b]=[...ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
     V.tx+=mx-g.mx;V.ty+=my-g.my;zoomAt(mx,my,d/g.d);g.d=d;g.mx=mx;g.my=my;return}
+  if(g.t==='lupa'){moverLupa(e.clientX,e.clientY);return}
   if(g.t!=='tap')return;
   const dx=e.clientX-g.sx,dy=e.clientY-g.sy;if(!g.moved&&Math.hypot(dx,dy)>8)g.moved=true;
   if(!g.moved)return;
@@ -665,7 +685,8 @@ canvas.addEventListener('pointermove',e=>{
   if(g.arrasto){const t=performance.now();if(!g.ult||t-g.ult>16){g.ult=t;arrastarPara(e.clientX,e.clientY)}return}
   V.tx=g.tx+dx;V.ty=g.ty+dy;applyV();
 });
-function endP(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(!g)return;
+function endP(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(!g)return;clearTimeout(g.timer);
+  if(g.t==='lupa'){fecharLupa();if(e.type==='pointerup')tap(e.clientX,e.clientY);g=ptrs.size?{t:'none'}:null;return}
   if(g.t==='pinch'){g=ptrs.size?{t:'none'}:null;return}
   if(g.t==='tap'&&g.arrasto&&g.moved){
     if(e.type==='pointerup')arrastarPara(e.clientX,e.clientY);
@@ -676,6 +697,29 @@ function endP(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(!g
   else if(g.t==='tap'&&!g.moved&&e.type==='pointerup')tap(e.clientX,e.clientY);
   if(!ptrs.size)g=null}
 canvas.addEventListener('pointerup',endP);canvas.addEventListener('pointercancel',endP);
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+// lupa: cópia da planta (imagem + balões) ampliada em volta do ponto do dedo,
+// desenhada acima dele (o dedo cobre justamente o ponto que se quer acertar)
+const LUPA=150,LUPA_ZOOM=3;let lupaK=1;
+function abrirLupa(cx,cy){
+  const p=P();if(!p)return;
+  // ampliação: 3x o zoom atual (a imagem tem resolução de sobra), no mínimo o
+  // suficiente pra' ler os balões com a planta inteira na tela, até 4x o tamanho real
+  lupaK=Math.min(Math.max(V.s*LUPA_ZOOM,.35),4);
+  $('#lupaIn').style.width=W+'px';$('#lupaIn').style.height=H+'px';
+  $('#lupaIn').innerHTML=`<img src="${p.area}" alt=""><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${ov.innerHTML}</svg>`;
+  $('#lupa').hidden=false;moverLupa(cx,cy);
+  if(navigator.vibrate)try{navigator.vibrate(10)}catch(_){}
+}
+function moverLupa(cx,cy){
+  const r=canvas.getBoundingClientRect(),ix=(cx-r.left-V.tx)/V.s,iy=(cy-r.top-V.ty)/V.s,l=$('#lupa');
+  let top=cy-LUPA-70;if(top<8)top=cy+70; // perto do topo: lupa vai pra' baixo do dedo
+  const left=Math.max(8,Math.min(innerWidth-LUPA-8,cx-LUPA/2));
+  l.style.left=left+'px';l.style.top=top+'px';
+  $('#lupaIn').style.transform=`translate(${LUPA/2-ix*lupaK}px,${LUPA/2-iy*lupaK}px) scale(${lupaK})`;
+  const[x,y]=toW(ix,iy);$('#readout').textContent=`X ${Math.round(x)} · Y ${Math.round(y)}`;
+}
+function fecharLupa(){const l=$('#lupa');if(!l.hidden){l.hidden=true;$('#lupaIn').innerHTML=''}}
 canvas.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,Math.exp(-e.deltaY*.0015))},{passive:false});
 const ctr=f=>{const r=canvas.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,f)};
 $('#zin').onclick=()=>ctr(1.5);$('#zout').onclick=()=>ctr(1/1.5);$('#zfit').onclick=fit;
@@ -696,7 +740,7 @@ function tap(cx,cy){
       if(ie>=0){sel={t:'ex',i:ie};renderDw();abrirFoto(p.pk.suportesExistentes[ie].codigo,'Já indicado no desenho');return}
       const mc=marksOf(cur).find(m=>m.st==='conf'&&Math.hypot(m.bx-x,m.by-y)<=r*1.05);
       if(mc){sel={t:'m',id:mc.id};renderDw();abrirFoto(mc.code,'Novo, já confirmado');return}}
-    pushUndo();
+    pushUndo(hitM?`empilhar ${st.code}`:`marcar ${st.code}`);usouCodigo(st.code);
     if(hitM){ // empilha no mesmo ponto, como no "Adicionar suporte"
       const base=ms.filter(m=>m.grp===hitM.grp),top=Math.max(...base.map(m=>m.pilha)),b0=base.find(m=>m.pilha===0);
       const m={id:++uid,grp:hitM.grp,code:st.code,ax:b0.ax,ay:b0.ay,bx:b0.bx,by:b0.by+(top+1)*2*r,pilha:top+1,st:'pend',t:new Date().toISOString()};
@@ -759,7 +803,12 @@ function place(ax,ay,n,excluirGrp){
   }
   return reserva||[Math.round(ax+3.2*r*.7071),Math.round(ay+3.2*r*.7071)];
 }
-function pushUndo(){undo.push(JSON.stringify(marksOf(cur)));if(undo.length>80)undo.shift()}
+// pedido do usuario: "desfazer" -- volta a última ação na planta (marcação,
+// empilhamento, movimento, troca de código, exclusão, confirmação ou remoção),
+// nos dois modos; cada passo guarda o que era e em que modo estava
+function pushUndo(txt){undo.push({s:JSON.stringify(marksOf(cur)),txt:txt||'última ação',modo:mode});if(undo.length>80)undo.shift()}
+function desfazer(){const u=undo.pop();if(!u)return;st.marks[cur]=JSON.parse(u.s);mode=u.modo;sel=null;save();renderDw();toast('Desfeito: '+u.txt)}
+function usouCodigo(c){st.recentes=[c,...(st.recentes||[]).filter(x=>x!==c)].slice(0,8)}
 
 /* ---------- painel ---------- */
 const catOf=c=>P().cat[c]||{codigo:c,tag:'?',pesoKg:0};
@@ -769,21 +818,26 @@ function renderDw(){
   $('#mInd').textContent=`Indicados (${p.pk.suportesExistentes.length+conf.length})`;
   $('#mNova').textContent=pend.length?`Nova marcação (${pend.length})`:'Nova marcação';
   const h=$('#hint');h.className='ov hint'+(mode==='nova'?' nova':'');
-  h.textContent=mode==='nova'?'Toque onde o suporte foi montado. Balão azul: toque empilha outro. Balão já marcado: toque mostra o desenho do suporte.':'Toque num balão para ver o desenho do suporte.';h.hidden=false;
+  h.textContent=mode==='nova'?'Toque onde o suporte foi montado (segure o dedo para abrir a lupa). Balão azul: toque empilha outro. Balão já marcado: mostra o desenho.':'Toque num balão para ver o desenho do suporte.';h.hidden=false;
   setTitle();renderOv();renderBadge();
   let s='';const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
   if(mode==='ind'){
     s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}</div>`;
     if(se){const c=catOf(se.codigo);s+=`<div class="selcard">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div></div>`}
     if(sm){const c=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button></div>`}
+    if(undo.length)s+=`<div class="row"><span class="note grow">Última ação: ${esc(undo[undo.length-1].txt)}</span><button type="button" class="btn sm" data-a="undo">Desfazer</button></div>`;
     s+=`<button type="button" class="btn ok" data-a="nova">${pend.length?`Continuar nova marcação (${pend.length})`:'Nova marcação'}</button>`;
   }else{
     const c=catOf(st.code);
     s+=`<div class="row" style="flex-wrap:nowrap">${fotoBtn(c.codigo)}<button type="button" class="cur" data-a="cat"><span class="mini ok">${esc(c.codigo)}</span><span class="meta"><b>${esc(c.tag)}</b><small>${fmtKg(c.pesoKg)} kg · toque para trocar o suporte</small></span><span aria-hidden="true">›</span></button></div>`;
+    // pedido do usuario: "busca na lista de suportes ... últimos usados" --
+    // troca rápida entre os suportes mais usados, sem abrir a lista
+    const rec=(st.recentes||[]).filter(x=>p.cat[x]).slice(0,6);
+    if(rec.length>1)s+=`<div class="recentes"><span class="lbl">Últimos:</span>${rec.map(x=>`<button type="button" data-a="rec" data-c="${esc(x)}" class="${x===st.code?'on':''}" aria-label="Usar suporte ${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
     if(sm){const cc=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ac">${esc(sm.code)}</span><div class="meta grow"><b>${esc(cc.tag)}</b><small>${sm.pilha?`Empilhado (${sm.pilha+1}º no ponto)`:'Com linha de chamada'}</small></div>
       <select data-a="code" aria-label="Trocar código">${p.pk.catalogo.map(x=>`<option value="${esc(x.codigo)}"${x.codigo===sm.code?' selected':''}>${esc(x.codigo)}</option>`).join('')}</select>
       <button type="button" class="btn sm" data-a="del">Excluir</button></div>`}
-    s+=`<div class="row"><span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}>Desfazer</button></div>
+    s+=`<div class="row"><span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}${undo.length?` title="Desfazer: ${esc(undo[undo.length-1].txt)}"`:''}>Desfazer</button></div>
       <button type="button" class="btn ok" data-a="conf"${pend.length?'':' disabled'}>Confirmar adição${pend.length?` (${pend.length})`:''}</button>`;
   }
   $('#panel').innerHTML=s;
@@ -792,12 +846,13 @@ $('#panel').addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,m=marksOf(cur);
   if(a==='nova'){mode='nova';sel=null;renderDw()}
   else if(a==='cat')openCat();
-  else if(a==='undo'){const s=undo.pop();if(s){st.marks[cur]=JSON.parse(s);sel=null;save();renderDw()}}
-  else if(a==='del'){pushUndo();const x=m.find(q=>q.id===sel.id);if(x){st.marks[cur]=m.filter(q=>q!==x&&!(x.pilha===0&&q.grp===x.grp&&q.st==='pend'))}sel=null;save();renderDw()}
-  else if(a==='conf'){const n=m.filter(x=>x.st==='pend');n.forEach(x=>{x.st='conf';x.t=new Date().toISOString()});undo=[];sel=null;mode='ind';save();renderDw();toast(`${n.length} suporte${n.length>1?'s':''} adicionado${n.length>1?'s':''} ao arquivo final`)}
-  else if(a==='unconf'){const x=m.find(q=>q.id===sel.id);if(x)st.marks[cur]=m.filter(q=>q!==x&&!(x.pilha===0&&q.grp===x.grp));sel=null;save();renderDw();toast('Removido do arquivo final')}
+  else if(a==='undo')desfazer();
+  else if(a==='rec'){st.code=b.dataset.c;save();renderDw()}
+  else if(a==='del'){pushUndo('excluir '+(m.find(q=>q.id===sel.id)||{}).code);const x=m.find(q=>q.id===sel.id);if(x){st.marks[cur]=m.filter(q=>q!==x&&!(x.pilha===0&&q.grp===x.grp&&q.st==='pend'))}sel=null;save();renderDw()}
+  else if(a==='conf'){const n=m.filter(x=>x.st==='pend');pushUndo('confirmação');n.forEach(x=>{x.st='conf';x.t=new Date().toISOString()});sel=null;mode='ind';save();renderDw();toast(`${n.length} suporte${n.length>1?'s':''} adicionado${n.length>1?'s':''} ao arquivo final`,{rotulo:'Desfazer',fn:desfazer})}
+  else if(a==='unconf'){pushUndo('remover '+(m.find(q=>q.id===sel.id)||{}).code);const x=m.find(q=>q.id===sel.id);if(x)st.marks[cur]=m.filter(q=>q!==x&&!(x.pilha===0&&q.grp===x.grp));sel=null;save();renderDw();toast('Removido do arquivo final',{rotulo:'Desfazer',fn:desfazer})}
 });
-$('#panel').addEventListener('change',e=>{const s=e.target.closest('select[data-a="code"]');if(!s)return;pushUndo();const x=marksOf(cur).find(q=>q.id===sel.id);if(x)x.code=s.value;save();renderDw()});
+$('#panel').addEventListener('change',e=>{const s=e.target.closest('select[data-a="code"]');if(!s)return;pushUndo('trocar código');const x=marksOf(cur).find(q=>q.id===sel.id);if(x){x.code=s.value;usouCodigo(s.value)}save();renderDw()});
 $('#mInd').onclick=()=>{mode='ind';sel=null;renderDw()};
 $('#mNova').onclick=()=>{mode='nova';sel=null;renderDw()};
 
@@ -820,14 +875,28 @@ $('#fotoBg').addEventListener('click',e=>{if(e.target.id==='fotoBg')$('#fotoBg')
 $('#fotoArea').addEventListener('click',()=>$('#fotoArea').classList.toggle('zoom'));
 document.addEventListener('click',e=>{const b=e.target.closest('[data-foto]');if(!b)return;e.stopPropagation();abrirFoto(b.dataset.foto)},true);
 
-function renderCat(){const q=$('#catQ').value.trim().toLowerCase();
-  $('#catList').innerHTML=P().pk.catalogo.filter(c=>!q||(c.codigo+' '+c.tag).toLowerCase().includes(q)).map(c=>`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===st.code?'on':''}${fotos[c.codigo]?' com-foto':''}">${fotos[c.codigo]?`<img class="foto-mini" loading="lazy" src="${fotos[c.codigo].url}" alt="Ver desenho do ${esc(c.codigo)}" data-foto="${esc(c.codigo)}">`:''}<span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`).join('')||'<p class="note" style="padding:8px">Nenhum suporte com esse código.</p>'}
+// busca: "5" acha o 05 primeiro (número igual), depois códigos que começam
+// com o texto, depois qualquer código/tag que contenha. Sem busca: últimos
+// usados no topo.
+function renderCat(){const q=$('#catQ').value.trim().toLowerCase(),cat=P().pk.catalogo,qn=/^\d+$/.test(q)?+q:null;
+  const nota=c=>{const cod=c.codigo.toLowerCase();if(qn!==null&&+c.codigo===qn)return 0;if(cod.startsWith(q))return 1;if(cod.includes(q))return 2;
+    return(c.tag||'').toLowerCase().includes(q)||(c.tag||'').toLowerCase().replace(/[^a-z0-9]/g,'').includes(q.replace(/[^a-z0-9]/g,''))?3:9};
+  let html;
+  if(q){html=cat.map(c=>[nota(c),c]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]).map(x=>itemCat(x[1])).join('')}
+  else{const rec=(st.recentes||[]).map(x=>cat.find(c=>c.codigo===x)).filter(Boolean).slice(0,6);
+    html=(rec.length?`<div class="sec">Últimos usados</div>${rec.map(itemCat).join('')}<div class="sec">Todos</div>`:'')+cat.map(itemCat).join('')}
+  $('#catList').innerHTML=html||'<p class="note" style="padding:8px">Nenhum suporte com esse código ou tag.</p>'}
+function itemCat(c){return`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===st.code?'on':''}${fotos[c.codigo]?' com-foto':''}">${fotos[c.codigo]?`<img class="foto-mini" loading="lazy" src="${fotos[c.codigo].url}" alt="Ver desenho do ${esc(c.codigo)}" data-foto="${esc(c.codigo)}">`:''}<span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`}
 $('#catQ').addEventListener('input',renderCat);
-$('#catList').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(!b)return;st.code=b.dataset.c;save();$('#catBg').hidden=true;renderDw()});
+// Enter na busca escolhe o primeiro da lista
+$('#catQ').addEventListener('keydown',e=>{if(e.key!=='Enter')return;const b=$('#catList button[data-c]');if(b){e.preventDefault();b.click()}});
+$('#catList').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(!b)return;st.code=b.dataset.c;usouCodigo(st.code);save();$('#catBg').hidden=true;renderDw()});
 $('#catClose').onclick=()=>$('#catBg').hidden=true;
 $('#catBg').addEventListener('click',e=>{if(e.target.id==='catBg')$('#catBg').hidden=true});
 
-let tt;function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,2400)}
+let tt;function toast(t,acao){const el=$('#toast');el.textContent=t;
+  if(acao){const b=document.createElement('button');b.type='button';b.textContent=acao.rotulo;b.onclick=()=>{el.hidden=true;acao.fn()};el.appendChild(b)}
+  el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,acao?5000:2400)}
 
 /* ---------- escritor de .zip (sem compressão, sem biblioteca) ---------- */
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();

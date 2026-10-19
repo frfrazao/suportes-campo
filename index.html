@@ -252,6 +252,35 @@ tfoot td{font-weight:600;border-bottom:0}
 .hrev .kg{font-family:var(--f-mono);font-weight:500;margin-left:auto}
 .hrev .dif{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
 .hrev ul{margin:0;padding-left:18px;font-size:14px;display:grid;gap:3px}
+.btn.envia{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);min-height:52px;font-size:17px}
+.fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:var(--accent-soft);font-size:14px}
+.guia-bg{position:fixed;inset:0;z-index:60;background:rgba(10,14,20,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.guia{width:min(460px,100%);background:var(--surface);border-radius:14px;padding:18px;display:grid;gap:12px}
+.guia .ic{font-size:44px;line-height:1}
+.guia h3{margin:0;font-size:22px;font-weight:700}
+.guia p{margin:0;font-size:16px;line-height:1.45}
+.guia ul{margin:0;padding-left:20px;display:grid;gap:4px;font-size:15.5px}
+.guia .pts{display:flex;gap:6px;justify-content:center}
+.guia .pts i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.guia .pts i.on{background:var(--accent)}
+#solBtn[aria-pressed="true"]{background:#FFD43B;border-color:#C99A00;color:#000}
+/* modo sol -- pedido do usuario: "uso em campo: modo sol (alto contraste, linhas mais grossas, botões maiores)" */
+:root[data-sol="1"]{--bg:#FFFFFF;--surface:#FFFFFF;--surface-2:#F0F0F0;--line:#000000;--fg:#000000;--muted:#1E1E1E;
+  --accent:#0033CC;--accent-fg:#FFFFFF;--ok:#006B2E;--ok-bg:#D4F5DF;--warn:#8A4B00;--warn-bg:#FFE7B8;--bad:#B00000;--bad-bg:#FFD9D9;color-scheme:light}
+:root[data-sol="1"] body{font-size:17px}
+:root[data-sol="1"] .btn{min-height:52px;font-size:17px;border-width:2px}
+:root[data-sol="1"] .btn.sm{min-height:46px}
+:root[data-sol="1"] .card,:root[data-sol="1"] .selcard,:root[data-sol="1"] .block,:root[data-sol="1"] .prog{border-width:2px}
+:root[data-sol="1"] .hint{font-size:16px;font-weight:600}
+:root[data-sol="1"] .note,:root[data-sol="1"] .meta small{font-size:15px}
+:root[data-sol="1"] .zoomctl button{width:56px;height:54px}
+/* tablet deitado: planta + painel lateral (pedido: "layout de tablet") */
+@media (min-width:700px) and (orientation:landscape){
+  .dw{grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:auto minmax(0,1fr)}
+  .modebar{grid-column:1 / -1}
+  .panel{grid-column:2;grid-row:2;max-height:none;border-top:0;border-left:1px solid var(--line);align-content:start}
+}
+@media (min-width:700px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .toast button{margin-left:12px;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-decoration:underline;padding:4px 2px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .busy{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(10,14,20,.35)}
@@ -271,6 +300,7 @@ tfoot td{font-weight:600;border-bottom:0}
   <header class="top">
     <button class="btn ghost sm" id="back" type="button" hidden aria-label="Voltar aos desenhos">‹ Desenhos</button>
     <div class="t"><h1 id="ttl">Suportes em Campo</h1><p id="sub">M447 · Elétrica</p></div>
+    <button class="btn ghost sm" id="solBtn" type="button" aria-pressed="false" aria-label="Modo sol (alto contraste)" title="Modo sol">☀</button>
     <button class="btn sm" id="goFinal" type="button">Finalizar <span class="badge" id="finBadge" hidden>0</span></button>
   </header>
 
@@ -281,6 +311,7 @@ tfoot td{font-weight:600;border-bottom:0}
       <div class="alerta" id="alerta" hidden></div>
       <section class="prog" id="prog" hidden></section>
       <div class="cards" id="cards"></div>
+      <div class="row"><button class="btn sm" type="button" id="guiaAbrir">Como usar o app</button></div>
       <div class="upload">
         <p>Recebeu desenhos pelo WhatsApp? Salve o arquivo <span class="mono">.campo.zip</span> no celular e abra aqui. Ele fica guardado no aparelho.</p>
         <label class="btn primary" for="zipIn">Abrir pacote</label>
@@ -364,6 +395,9 @@ tfoot td{font-weight:600;border-bottom:0}
   </div>
 </div>
 <div class="lupa" id="lupa" hidden><div class="in" id="lupaIn"></div></div>
+<div class="guia-bg" id="guiaBg" hidden><div class="guia" role="dialog" aria-label="Como usar"><div id="guiaCorpo"></div>
+  <div class="pts" id="guiaPts"></div>
+  <div class="row"><button class="btn ghost sm" type="button" id="guiaPular">Pular</button><span class="grow"></span><button class="btn sm" type="button" id="guiaVoltar">Voltar</button><button class="btn primary sm" type="button" id="guiaProx">Próximo</button></div></div></div>
 <div class="toast" id="toast" hidden></div>
 <div class="busy" id="busy" hidden><div id="busyTxt">Carregando…</div></div>
 
@@ -399,7 +433,9 @@ function busy(t){$('#busyTxt').textContent=t||'';$('#busy').hidden=!t}
 const DB_NOME='milplan-campo',DB_STORE='pacotes';
 // v2: store "fotos" (desenho de cada suporte, recortado do PDF oficial pelo plugin)
 // v3: store "fotosCampo" (fotos tiradas pelo operador, ligadas a uma marcação/suporte)
-function abrirDb(){return new Promise((ok,no)=>{try{const r=indexedDB.open(DB_NOME,3);r.onupgradeneeded=()=>{const db=r.result;
+// v4: store "saida" (retornos esperando sinal pra' sair direto pro projetista)
+function abrirDb(){return new Promise((ok,no)=>{try{const r=indexedDB.open(DB_NOME,4);r.onupgradeneeded=()=>{const db=r.result;
+  if(!db.objectStoreNames.contains('saida'))db.createObjectStore('saida',{keyPath:'id'});
   if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE,{keyPath:'key'});
   if(!db.objectStoreNames.contains('fotos'))db.createObjectStore('fotos',{keyPath:'codigo'});
   if(!db.objectStoreNames.contains('fotosCampo'))db.createObjectStore('fotosCampo',{keyPath:'id'})};
@@ -600,7 +636,7 @@ $('#alerta').addEventListener('click',e=>{if(e.target.closest('[data-go-final]')
 // atualização pelo celular do operador". O plugin publica o pacote num
 // repositório PRIVADO do GitHub (campo/indice.json + campo/pacote.campo.zip);
 // o app lê com uma chave de SOMENTE LEITURA e se atualiza sozinho ao abrir.
-const SYNC_KEY='milplan-campo-sync',REPO_PADRAO='frfrazao/suportes-campo-dados';
+const SYNC_KEY='milplan-campo-sync',REPO_PADRAO='frfrazao/suportes-campo-dados',REPO_RET_PADRAO='frfrazao/suportes-campo-retornos';
 let sync={};try{sync=JSON.parse(localStorage.getItem(SYNC_KEY))||{}}catch(e){}
 const salvarSync=()=>{try{localStorage.setItem(SYNC_KEY,JSON.stringify(sync))}catch(e){}};
 let syncMsg='',syncRodando=false;
@@ -616,6 +652,8 @@ async function verificarAtualizacao(manual){
   try{
     const ri=await apiGh('campo/indice.json');if(!ri.ok)throw new Error(erroGh(ri));
     const ind=await ri.json();sync.verificadoEm=new Date().toISOString();
+    // desenhos publicados (pra' avisar "existe Rev. N" quando o celular ficou pra' trás)
+    if(Array.isArray(ind.desenhos))sync.publicados=ind.desenhos.map(String);
     if(ind.versao===sync.versao){syncMsg='Desenhos em dia.';salvarSync();return}
     busy('Baixando desenhos atualizados…');$('#zipErr').hidden=true;
     const rp=await apiGh(ind.arquivo||'campo/pacote.campo.zip');if(!rp.ok)throw new Error(erroGh(rp));
@@ -644,7 +682,12 @@ function renderSync(){
       <div class="row"><button class="btn sm" type="button" data-sync="agora"${syncRodando?' disabled':''}>Verificar agora</button>
       <button class="btn sm" type="button" data-sync="link">Link para outro celular</button>
       <button class="btn ghost sm" type="button" data-sync="desligar">Desligar</button></div>
-      <p class="note" id="syncMsg">${esc(syncMsg)}</p><div id="syncLink"></div>`;
+      <p class="note" id="syncMsg">${esc(syncMsg)}</p><div id="syncLink"></div>
+      ${sync.tokenEnvio?`<h3 style="margin-top:10px">Envio direto ligado</h3><p class="note">O levantamento vai direto para o projetista, sem WhatsApp. Sem sinal, fica na fila e sai sozinho quando a conexão voltar.</p>
+        <div class="row"><button class="btn ghost sm" type="button" data-sync="desligarEnvio">Desligar envio direto</button></div>`
+      :`<h3 style="margin-top:10px">Envio direto (opcional)</h3><p class="note">Com a chave de envio do projetista, o levantamento sai direto do app, sem WhatsApp.</p>
+        <div class="field"><label for="syncTokenEnvio">Chave de envio</label><input id="syncTokenEnvio" type="password" autocomplete="off" placeholder="github_pat_…"></div>
+        <div class="row"><button class="btn sm" type="button" data-sync="salvarEnvio">Ligar envio direto</button></div>`}`;
   }else{
     el.innerHTML=`<h3>Atualização automática</h3>
       <p class="note">Com a chave de acesso do projetista, os desenhos chegam sozinhos ao abrir o app, sem precisar abrir arquivo do WhatsApp.</p>
@@ -658,11 +701,14 @@ $('#syncSec').addEventListener('click',async e=>{
   if(a==='salvar'){const t=$('#syncToken').value.trim();if(!t){syncMsg='Cole a chave de acesso.';renderSync();return}
     sync={repo:REPO_PADRAO,token:t};salvarSync();syncMsg='';await verificarAtualizacao(true)}
   else if(a==='agora')await verificarAtualizacao(true);
+  else if(a==='salvarEnvio'){const t=$('#syncTokenEnvio').value.trim();if(!t){syncMsg='Cole a chave de envio.';renderSync();return}
+    sync.tokenEnvio=t;sync.repoRet=sync.repoRet||REPO_RET_PADRAO;salvarSync();syncMsg='Envio direto ligado.';renderSync();processarFila()}
+  else if(a==='desligarEnvio'){delete sync.tokenEnvio;salvarSync();syncMsg='Envio direto desligado.';renderSync()}
   else if(a==='desligar'){if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Tocar de novo para desligar';return}
     sync={};salvarSync();syncMsg='Atualização automática desligada.';renderSync()}
   else if(a==='link'){
     // link de configuração (a chave vai depois do "#", que não sai do celular nem chega ao servidor)
-    const cfg=btoa(JSON.stringify({r:sync.repo,t:sync.token})).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const cfg=btoa(JSON.stringify(Object.assign({r:sync.repo,t:sync.token},sync.tokenEnvio?{rr:sync.repoRet||REPO_RET_PADRAO,w:sync.tokenEnvio}:{}))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
     const url=`${location.origin}${location.pathname}#config=${cfg}`;
     $('#syncLink').innerHTML=`<p class="note">Mande este link uma vez para o celular do operador. Ao abrir, a atualização automática liga sozinha. Quem tiver o link consegue ver os desenhos: não compartilhe em grupos.</p>
       <div class="row"><input class="grow" id="syncLinkTxt" readonly value="${esc(url)}" style="min-height:40px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);min-width:0"><button class="btn sm" type="button" data-sync="copiar">Copiar</button></div>`;
@@ -673,17 +719,53 @@ $('#syncSec').addEventListener('click',async e=>{
 function lerLinkConfig(){
   const m=/[#&]config=([A-Za-z0-9_-]+)/.exec(location.hash);if(!m)return false;
   try{const s=m[1].replace(/-/g,'+').replace(/_/g,'/'),j=JSON.parse(atob(s+'==='.slice((s.length+3)%4)));
-    if(j.t){sync={repo:j.r||REPO_PADRAO,token:j.t};salvarSync();syncMsg='Atualização automática ligada por link.'}}
+    if(j.t){sync={repo:j.r||REPO_PADRAO,token:j.t};if(j.w){sync.tokenEnvio=j.w;sync.repoRet=j.rr||REPO_RET_PADRAO}salvarSync();
+      syncMsg='Atualização automática ligada por link.'+(j.w?' Envio direto ligado.':'')}}
   catch(e){syncMsg='Link de configuração inválido.'}
   history.replaceState(null,'',location.pathname);return true;
 }
 // link aberto com o app já aberto (só o "#" muda, a página não recarrega)
 window.addEventListener('hashchange',()=>{if(lerLinkConfig()){renderSync();verificarAtualizacao(true)}});
-window.addEventListener('online',()=>verificarAtualizacao(false));
+window.addEventListener('online',()=>{verificarAtualizacao(false);processarFila()});
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible'||!sync.token)return;
   const ult=Date.parse(sync.verificadoEm||0)||0;if(Date.now()-ult>10*60e3)verificarAtualizacao(false);
 });
+
+/* ---------- envio direto ao projetista (sem WhatsApp) ---------- */
+// pedido do usuario: "pode fazer 1, 2, 5 e 6" (2: "o app envia o retorno direto
+// para um repositório privado só de retornos"). O plugin busca em retornos/ e
+// avisa "Importar agora". Sem sinal: o .zip fica na fila (IndexedDB "saida") e
+// sai sozinho quando a conexão voltar; as marcações só viram "enviadas" quando
+// o arquivo chega no servidor.
+const blobB64=b=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=no;r.readAsDataURL(b)});
+async function subirRetorno(nome,blob){
+  const repo=sync.repoRet||REPO_RET_PADRAO;
+  const r=await fetch(`https://api.github.com/repos/${repo}/contents/retornos/${encodeURIComponent(nome)}`,{method:'PUT',
+    headers:{Authorization:`Bearer ${sync.tokenEnvio}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
+    body:JSON.stringify({message:`Levantamento de campo ${nome}`,content:await blobB64(blob)})});
+  if(r.status===422){/* já existe com esse nome = já subiu antes */return true}
+  if(!r.ok)throw Object.assign(new Error(r.status===401?'chave de envio inválida ou vencida':r.status===403||r.status===404?'chave de envio sem permissão no repositório de retornos':'erro '+r.status),{definitivo:r.status<500});
+  return true;
+}
+function marcarEnviados(itens,quando){
+  (itens.marcas||[]).forEach(([k,id])=>{const m=(st.marks[k]||[]).find(x=>x.id===id);if(m)m.enviado=quando});
+  (itens.ex||[]).forEach(([k,h])=>{const o=(st.ex[k]||{})[h];if(o)o.enviado=quando});save();
+}
+let filaRodando=false,filaN=0;
+async function processarFila(){
+  if(filaRodando||!sync.tokenEnvio)return;filaRodando=true;
+  try{const itens=await dbTx('readonly',x=>x.getAll(),'saida')||[];filaN=itens.length;
+    if(itens.length&&navigator.onLine)for(const it of itens){
+      try{await subirRetorno(it.nome,it.blob);await dbTx('readwrite',x=>x.delete(it.id),'saida');marcarEnviados(it.itens,new Date().toISOString());filaN--;
+        toast('Levantamento na fila enviado ao projetista')}
+      catch(e){if(e.definitivo){it.erro=e.message;await dbTx('readwrite',x=>x.put(it),'saida')}break}}
+  }catch(e){console.warn('fila',e)}
+  finally{filaRodando=false;if(!$('#scrHome').hidden)renderHome();if(!$('#scrFin').hidden&&$('#filaInfo'))renderFilaInfo()}
+}
+async function renderFilaInfo(){const el=$('#filaInfo');if(!el)return;let itens=[];try{itens=await dbTx('readonly',x=>x.getAll(),'saida')||[]}catch(_){}
+  el.hidden=!itens.length;el.innerHTML=itens.length?`<span class="grow">${itens.length} levantamento(s) na fila, esperando sinal.${itens.some(i=>i.erro)?' Erro: '+esc(itens.find(i=>i.erro).erro):''}</span><button class="btn sm" type="button" id="filaAgora">Tentar agora</button>`:''}
+document.addEventListener('click',e=>{if(e.target.id==='filaAgora')processarFila()});
 
 /* ---------- cópia de segurança das marcações ---------- */
 function bkpArquivo(){
@@ -735,8 +817,14 @@ $('#resp').addEventListener('input',e=>{st.resp=e.target.value;save()});
 // celular é o atual
 const histDe=p=>(p.pk.historico||[]).slice().sort((a,b)=>a.rev-b.rev);
 const dataCurta=iso=>{if(!iso)return'';const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})};
-function revInfo(p){const h=histDe(p);if(!h.length)return null;const atual=h.find(r=>r.noPacote)||h[h.length-1],ult=h[h.length-1];
-  return{atual,ult,nova:ult.rev>atual.rev?ult:null,total:h.length}}
+// pedido do usuario: "pode fazer 1, 2, 5 e 6" (1: marcação feita numa revisão
+// antiga) -- revisão mais nova vem do histórico do pacote OU da lista de
+// desenhos publicados (última verificação da atualização automática)
+function revInfo(p){const h=histDe(p),rd=revDe(p.pk.desenho.nome);
+  const atual=h.find(r=>r.noPacote)||(rd.rev>=0?{rev:rd.rev,data:null}:null);if(!atual)return null;
+  let nova=null;const ult=h[h.length-1];if(ult&&ult.rev>atual.rev)nova={rev:ult.rev,data:ult.data};
+  for(const n of sync.publicados||[]){const r=revDe(n);if(r.base===rd.base&&r.rev>atual.rev&&(!nova||r.rev>nova.rev))nova={rev:r.rev,publicada:true}}
+  return{atual,nova,total:h.length}}
 function abrirHist(){const p=P();if(!p)return;const h=histDe(p);
   $('#histTit').textContent=`Revisões · ${p.pk.desenho.nome.replace('M447-ELE-SUP-','')}`;
   $('#histList').innerHTML=h.length?h.slice().reverse().map((r,i,arr)=>{const ant=h[h.indexOf(r)-1];const dif=ant?r.pesoKg-ant.pesoKg:null;
@@ -746,6 +834,31 @@ function abrirHist(){const p=P();if(!p)return;const h=histDe(p);
   $('#histBg').hidden=false}
 $('#histClose').onclick=()=>$('#histBg').hidden=true;
 $('#histBg').addEventListener('click',e=>{if(e.target.id==='histBg')$('#histBg').hidden=true});
+
+/* ---------- modo sol e guia rápido ---------- */
+// pedido do usuario: "pode fazer 1, 2, 5 e 6" (5: "modo sol: alto contraste,
+// linhas mais grossas e botões maiores; layout de tablet; guia rápido")
+const KEY_SOL='milplan-campo-sol',KEY_GUIA='milplan-campo-guia';
+let sol=false;try{sol=localStorage.getItem(KEY_SOL)==='1'}catch(_){}
+function aplicarSol(){document.documentElement.toggleAttribute('data-sol',false);if(sol)document.documentElement.setAttribute('data-sol','1');
+  $('#solBtn').setAttribute('aria-pressed',String(sol));if(cur&&P()&&!$('#scrDw').hidden)renderOv()}
+$('#solBtn').onclick=()=>{sol=!sol;try{localStorage.setItem(KEY_SOL,sol?'1':'0')}catch(_){}aplicarSol();toast(sol?'Modo sol ligado: alto contraste':'Modo sol desligado')};
+const GUIA=[
+  {ic:'📂',t:'1. Abra o desenho',x:'<p>Toque em <b>Abrir</b> no desenho da área. Em <b>Indicados</b> aparecem os suportes que já estão no projeto.</p><ul><li>Dois dedos: zoom. Um dedo: mover a planta.</li><li><b>Localizar</b> acha todos os balões de um código.</li></ul>'},
+  {ic:'👆',t:'2. Marque o que foi montado',x:'<p>Toque em <b>Nova marcação</b>, escolha o suporte e toque onde ele foi montado.</p><ul><li><b>Segure o dedo</b> para abrir a lupa e acertar o ponto.</li><li>Arraste um balão azul para mudar de lugar.</li><li>Toque num balão azul para empilhar outro no mesmo ponto.</li></ul>'},
+  {ic:'✅',t:'3. Confira e confirme',x:'<p>Toque em <b>Confirmar adição</b>. Errou? Use <b>Desfazer</b>.</p><ul><li>No balão: <b>Observação</b> e <b>Tirar foto</b>.</li><li>Suporte do projeto que não foi montado ou mudou: marque em <b>Indicados</b>.</li></ul>'},
+  {ic:'📤',t:'4. Envie',x:'<p>Toque em <b>Finalizar</b> e depois em <b>Enviar</b>. Sem sinal, o envio direto espera na fila e sai sozinho.</p><ul><li><b>Resumo em PDF</b> gera um relatório para mostrar.</li><li>☀ no topo liga o <b>modo sol</b>, para ler no sol forte.</li></ul>'},
+];
+let guiaI=0;
+function renderGuia(){const g=GUIA[guiaI];$('#guiaCorpo').innerHTML=`<div class="ic">${g.ic}</div><h3>${g.t}</h3>${g.x}`;
+  $('#guiaPts').innerHTML=GUIA.map((_,i)=>`<i class="${i===guiaI?'on':''}"></i>`).join('');
+  $('#guiaVoltar').hidden=guiaI===0;$('#guiaProx').textContent=guiaI===GUIA.length-1?'Começar':'Próximo'}
+function abrirGuia(){guiaI=0;renderGuia();$('#guiaBg').hidden=false}
+function fecharGuia(){$('#guiaBg').hidden=true;try{localStorage.setItem(KEY_GUIA,'1')}catch(_){}}
+$('#guiaProx').onclick=()=>{if(guiaI<GUIA.length-1){guiaI++;renderGuia()}else fecharGuia()};
+$('#guiaVoltar').onclick=()=>{if(guiaI>0){guiaI--;renderGuia()}};
+$('#guiaPular').onclick=fecharGuia;
+$('#guiaAbrir').onclick=abrirGuia;
 
 /* ---------- localizar suporte na planta ---------- */
 // pedido do usuario: "'Onde está o suporte X?': escolher um código e o app
@@ -877,7 +990,7 @@ function leaderSVG(bx,by,ax,ay,r,cls){
   return`<line class="${cls}" x1="${ex}" y1="${ey}" x2="${ax}" y2="${ay}"/><polygon class="${cls}" points="${ax},${ay} ${qx-uy*w},${qy+ux*w} ${qx+uy*w},${qy-ux*w}"/>`;
 }
 function renderOv(){
-  const p=P(),mm=A().mmPorPixel,r=R()/mm,fs=p.pk.balao.alturaTextoMm/mm*1.3,lw=Math.max(2,r*.07);let s=`<style>
+  const p=P(),mm=A().mmPorPixel,r=R()/mm,fs=p.pk.balao.alturaTextoMm/mm*1.3,lw=Math.max(2,r*.07)*(sol?1.7:1);let s=`<style>
    .ex circle{fill:#fff;stroke:#1d2530;stroke-width:${lw}} .ex text{fill:#1d2530;font-family:'IBM Plex Mono',monospace;font-weight:500}
    .ld-ex{stroke:#1d2530;fill:#1d2530;stroke-width:${lw*.8}}
    .nw circle{fill:#E1F3E8;stroke:#1C8A4B;stroke-width:${lw*1.3}} .nw text{fill:#13633A;font-family:'IBM Plex Mono',monospace;font-weight:500}
@@ -1104,7 +1217,7 @@ function renderDw(){
   if(mode==='ind'){
     const noc=notasEx(cur).length;
     s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}${noc?` · <b style="color:var(--warn)">${noc}</b> com ocorrência`:''}</div>`;
-    {const ri=revInfo(p);if(ri)s+=`<div class="row"><span class="kgline grow">Revisão no celular <b>Rev. ${ri.atual.rev}</b>${ri.atual.data?` de ${esc(dataCurta(ri.atual.data))}`:''}${ri.nova?` · <b style="color:var(--warn)">existe Rev. ${ri.nova.rev}</b>`:''}</span><button type="button" class="btn sm" data-a="hist">Histórico (${ri.total})</button></div>`}
+    {const ri=revInfo(p);if(ri)s+=`<div class="row"><span class="kgline grow">Revisão no celular <b>Rev. ${ri.atual.rev}</b>${ri.atual.data?` de ${esc(dataCurta(ri.atual.data))}`:''}${ri.nova?` · <b style="color:var(--warn)">existe Rev. ${ri.nova.rev}</b>`:''}</span>${ri.total?`<button type="button" class="btn sm" data-a="hist">Histórico (${ri.total})</button>`:''}</div>`}
     {const ki=pesoIndicados(p),kn=pesoMarcas(p,x=>x.st==='conf');s+=`<div class="kgline">Peso no desenho <b>${fmtKg(ki+kn)} kg</b>${kn?` · <b class="ok">+${fmtKg(kn)} kg</b> novos`:''}</div>`}
     if(!se&&!sm)s+=`<p class="note">Toque num balão para ver o desenho do suporte, marcar se ele <b>não foi montado</b> ou foi <b>alterado</b>, escrever uma observação ou tirar foto.</p>`;
     if(se){const c=catOf(se.codigo);s+=`<div class="selcard">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div>${notaHtml({t:'ex',i:sel.i},exOf(cur)[exKey(se,sel.i)],true)}</div>`}
@@ -1112,6 +1225,8 @@ function renderDw(){
     if(undo.length)s+=`<div class="row"><span class="note grow">Última ação: ${esc(undo[undo.length-1].txt)}</span><button type="button" class="btn sm" data-a="undo">Desfazer</button></div>`;
     s+=`<button type="button" class="btn ok" data-a="nova">${pend.length?`Continuar nova marcação (${pend.length})`:'Nova marcação'}</button>`;
   }else{
+    {const ri=revInfo(p);if(ri&&ri.nova)s+=`<div class="info">Este celular está com a <b>Rev. ${ri.atual.rev}</b>, mas já existe a <b>Rev. ${ri.nova.rev}</b> deste desenho. Pode marcar: o projetista aplica na revisão mais nova. Se tiver sinal, atualize antes.
+      ${sync.token?'<div class="row" style="margin-top:6px"><button type="button" class="btn sm" data-a="atualizar">Buscar atualização agora</button></div>':''}</div>`}
     const c=catOf(st.code);
     s+=`<div class="row" style="flex-wrap:nowrap">${fotoBtn(c.codigo)}<button type="button" class="cur" data-a="cat"><span class="mini ok">${esc(c.codigo)}</span><span class="meta"><b>${esc(c.tag)}</b><small>${fmtKg(c.pesoKg)} kg · toque para trocar o suporte</small></span><span aria-hidden="true">›</span></button></div>`;
     // pedido do usuario: "busca na lista de suportes ... últimos usados" --
@@ -1132,6 +1247,7 @@ $('#panel').addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,m=marksOf(cur);
   const alvo=sel&&(sel.t==='m'?{t:'m',id:sel.id}:{t:'ex',i:sel.i});
   if(a==='hist'){abrirHist();return}
+  if(a==='atualizar'){const k=cur;verificarAtualizacao(true).then(()=>{if(pacotes.some(x=>x.key===k))openDw(k);else{cur=null;show('scrHome');renderHome();setTitle();toast('Desenho trocado pela revisão nova. Abra de novo.')}});return}
   if(a==='ach-prev'){irAchado(-1);return}
   if(a==='ach-next'){irAchado(1);return}
   if(a==='ach-todos'){busca.i=-1;verAchados();renderDw();return}
@@ -1275,8 +1391,10 @@ async function openFinal(){
   if(alt.length)s+=`<section class="send"><h3>Enviar para o projetista</h3>
       <p class="note">Vai um arquivo <span class="mono">.zip</span> (o plugin lê ele, coloca os balões no desenho e monta o relatório com as observações e fotos) e uma imagem de cada folha alterada, para conferir na conversa.</p>
       ${st.resp?'':`<div class="field"><label for="respFin">Seu nome (obrigatório para enviar)</label><input id="respFin" type="text" placeholder="Nome do responsável em campo" autocomplete="name"></div>`}
+      ${sync.tokenEnvio?`<button class="btn envia" type="button" id="direto" disabled>Enviar direto ao projetista</button><div class="fila" id="filaInfo" hidden></div>`:''}
       <button class="btn wa" type="button" id="share" disabled>${st.resp?'Preparando arquivos…':'Preencha seu nome para enviar'}</button>
       <div class="row"><a class="btn sm" id="dl" hidden>Baixar o .zip</a><span class="note grow" id="shareNote"></span></div>
+      <div class="row"><button class="btn sm" type="button" id="pdfBtn" disabled>Resumo em PDF</button><a class="btn sm" id="pdfDl" hidden>Baixar o PDF</a><span class="note grow" id="pdfNote">Para o cliente ou a fiscalização: folhas, pesos e ocorrências.</span></div>
       <div id="novoWrap" hidden><button class="btn sm" type="button" id="novo">Começar novo levantamento</button></div></section>`;
   alt.forEach((p,i)=>{const conf=marksOf(p.key).filter(m=>m.st==='conf'),grp={};conf.forEach(m=>{grp[m.code]=(grp[m.code]||0)+1});let sk=0;
     const rows=Object.keys(grp).sort().map(c=>{const it=p.cat[c]||{tag:'?',pesoKg:0},t=it.pesoKg*grp[c];sk+=t;return`<tr><td class="mono">${esc(c)}</td><td class="n">${grp[c]}</td><td class="mono">${esc(it.tag)}</td><td class="n">${fmtKg(it.pesoKg)}</td><td class="n">${fmtKg(t)}</td></tr>`}).join('');
@@ -1310,8 +1428,130 @@ async function openFinal(){
   const rf=$('#respFin');
   if(rf){rf.addEventListener('change',()=>{const v=rf.value.trim();if(!v)return;st.resp=v;save();openFinal()});return}
   const dl=$('#dl');dl.href=zu;dl.download=zipNome;dl.hidden=false;
-  const sh=$('#share');sh.disabled=false;sh.textContent='Enviar pelo WhatsApp';
+  const sh=$('#share');sh.disabled=false;sh.textContent=sync.tokenEnvio?'Enviar pelo WhatsApp (reserva)':'Enviar pelo WhatsApp';
   sh.onclick=enviar;
+  envio.itens={marcas:alt.flatMap(p=>marksOf(p.key).filter(m=>m.st==='conf'&&!m.enviado).map(m=>[p.key,m.id])),
+    ex:alt.flatMap(p=>Object.entries(exOf(p.key)).filter(([,o])=>temNota(o)&&!o.enviado).map(([h])=>[p.key,h]))};
+  const dir=$('#direto');if(dir){dir.disabled=false;dir.onclick=enviarDireto;renderFilaInfo()}
+  const pb=$('#pdfBtn');if(pb){pb.disabled=false;pb.onclick=()=>gerarPdf(alt)}
+}
+/* ---------- resumo em PDF ---------- */
+// pedido do usuario: "pode fazer 1, 2, 5 e 6" (6: "na tela final, gerar um PDF
+// com as folhas marcadas, a tabela de pesos e as ocorrências, para mandar ao
+// cliente ou à fiscalização sem passar pelo AutoCAD"). PDF montado à mão (como
+// o .zip): A4 deitado, Helvetica (WinAnsi), imagens JPEG -- nada de biblioteca.
+const PDF_W=842,PDF_H=595;
+function winAnsi(t){const esp={'–':150,'—':151,'…':133,'“':147,'”':148,'‘':145,'’':146,'•':149,'€':128,'Ø':216,'×':215,'·':183};
+  const out=[];for(const ch of String(t)){const c=ch.codePointAt(0);out.push(esp[ch]!==undefined?esp[ch]:c<256?c:63)}return out}
+function pdfTxt(t){return winAnsi(t).map(c=>c===40||c===41||c===92?'\\'+String.fromCharCode(c):c<32||c>126?'\\'+c.toString(8).padStart(3,'0'):String.fromCharCode(c)).join('')}
+async function jpegDe(src,maxLado){const im=await loadImg(src),k=Math.min(1,maxLado/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(im.naturalWidth*k));c.height=Math.max(1,Math.round(im.naturalHeight*k));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+  const b=await new Promise(ok=>c.toBlob(ok,'image/jpeg',.82));return{w:c.width,h:c.height,dados:new Uint8Array(await b.arrayBuffer())}}
+function novoPdf(){
+  const paginas=[],imagens=[];let pg=null;
+  const larg=(t,tam)=>String(t).length*tam*.52;
+  const api={
+    pagina(){pg={ops:[],img:[]};paginas.push(pg);return api},
+    texto(x,y,t,tam=10,negrito=false,cor=null){pg.ops.push(`${cor?cor+' rg ':''}BT /${negrito?'F2':'F1'} ${tam} Tf ${x.toFixed(1)} ${(PDF_H-y).toFixed(1)} Td (${pdfTxt(t)}) Tj ET${cor?' 0 0 0 rg':''}`);return api},
+    // texto com quebra de linha; devolve o y depois do bloco
+    bloco(x,y,w,t,tam=10,negrito=false,cor=null){const pal=String(t).split(/\s+/);let linha='',yy=y;
+      for(const p of pal){const tent=linha?linha+' '+p:p;if(larg(tent,tam)>w&&linha){api.texto(x,yy,linha,tam,negrito,cor);yy+=tam*1.3;linha=p}else linha=tent}
+      if(linha){api.texto(x,yy,linha,tam,negrito,cor);yy+=tam*1.3}return yy},
+    linha(x1,y1,x2,y2,esp=.6,cinza=.6){pg.ops.push(`${cinza} G ${esp} w ${x1} ${PDF_H-y1} m ${x2} ${PDF_H-y2} l S 0 G`);return api},
+    retang(x,y,w,h,cinza){pg.ops.push(`${cinza} g ${x} ${PDF_H-y-h} ${w} ${h} re f 0 g`);return api},
+    imagem(img,x,y,w,h){const n=imagens.push(img);pg.ops.push(`q ${w.toFixed(1)} 0 0 ${h.toFixed(1)} ${x.toFixed(1)} ${(PDF_H-y-h).toFixed(1)} cm /Im${n} Do Q`);pg.img.push(n);return api},
+    larg,
+    gerar(){
+      const enc=new TextEncoder(),partes=[],offs=[];let tam=0;
+      const add=x=>{const u=typeof x==='string'?Uint8Array.from(x,ch=>ch.charCodeAt(0)&255):x;partes.push(u);tam+=u.length};
+      const obj=(n,corpo,stream)=>{offs[n]=tam;add(`${n} 0 obj\n`);add(corpo);if(stream){add('\nstream\n');add(stream);add('\nendstream')}add('\nendobj\n')};
+      add('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n');
+      // 1 catálogo, 2 páginas, 3-4 fontes, 5.. imagens, depois páginas+conteúdos
+      const nImg0=5,nPag0=nImg0+imagens.length;
+      obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+      obj(2,`<< /Type /Pages /Count ${paginas.length} /Kids [${paginas.map((_,i)=>`${nPag0+i*2} 0 R`).join(' ')}] >>`);
+      obj(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+      obj(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+      imagens.forEach((im,i)=>obj(nImg0+i,`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.dados.length} >>`,im.dados));
+      paginas.forEach((p,i)=>{const nP=nPag0+i*2,nC=nP+1,conteudo=p.ops.join('\n');
+        const xo=p.img.length?`/XObject << ${p.img.map(n=>`/Im${n} ${nImg0+n-1} 0 R`).join(' ')} >>`:'';
+        obj(nP,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PDF_W} ${PDF_H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> ${xo} >> /Contents ${nC} 0 R >>`);
+        obj(nC,`<< /Length ${conteudo.length} >>`,conteudo)});
+      const nTot=nPag0+paginas.length*2,xref=tam;
+      add(`xref\n0 ${nTot}\n0000000000 65535 f \n`);for(let n=1;n<nTot;n++)add(String(offs[n]).padStart(10,'0')+' 00000 n \n');
+      add(`trailer\n<< /Size ${nTot} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+      return new Blob(partes,{type:'application/pdf'})}
+  };
+  return api;
+}
+async function gerarPdf(alt){
+  const note=$('#pdfNote'),btn=$('#pdfBtn');btn.disabled=true;busy('Montando o PDF…');
+  try{
+    const pdf=novoPdf(),M=36,quando=new Date();
+    const conf=p=>marksOf(p.key).filter(m=>m.st==='conf');
+    const kgTot=alt.reduce((a,p)=>a+pesoMarcas(p,m=>m.st==='conf'),0),nNovos=alt.reduce((a,p)=>a+conf(p).length,0);
+    const cab=(t,sub)=>{pdf.pagina();pdf.retang(0,0,PDF_W,44,.12);pdf.texto(M,28,t,15,true,'1 1 1');if(sub)pdf.texto(PDF_W-M-pdf.larg(sub,9),28,sub,9,false,'1 1 1')};
+    const rod=`${st.resp||'Responsável não informado'} · ${quando.toLocaleString('pt-BR')}`;
+    // --- página 1: resumo
+    cab('Levantamento de suportes em campo','M447 · Elétrica');
+    let y=72;pdf.texto(M,y,rod,10);y+=26;
+    const nNao=alt.reduce((a,p)=>a+notasEx(p.key).filter(o=>o.sit==='nao').length,0),nAlt=alt.reduce((a,p)=>a+notasEx(p.key).filter(o=>o.sit==='alt').length,0);
+    [['Desenhos',String(alt.length)],['Suportes novos',String(nNovos)],['Peso adicionado',fmtKg(kgTot)+' kg'],['Não montados',String(nNao)],['Alterados',String(nAlt)]]
+      .forEach(([l,v],i)=>{const x=M+i*154;pdf.retang(x,y,146,46,.94);pdf.texto(x+8,y+15,l.toUpperCase(),8);pdf.texto(x+8,y+36,v,16,true)});
+    y+=72;
+    const mg=materiaisDe(alt.map(p=>[p,conf(p)])),ml=Object.entries(mg).filter(([,v])=>v>=.005).sort((a,b)=>b[1]-a[1]);
+    pdf.texto(M,y,'Peso adicionado por material',12,true);pdf.texto(440,y,'Desenhos',12,true);y+=8;let y2=y;
+    ml.forEach(([k,v])=>{y+=17;pdf.texto(M,y,k,10);pdf.texto(380-pdf.larg(fmtKg(v)+' kg',10),y,fmtKg(v)+' kg',10);pdf.linha(M,y+5,380,y+5,.4,.8)});
+    if(ml.length){y+=17;pdf.texto(M,y,'Total adicionado',10,true);pdf.texto(380-pdf.larg(fmtKg(kgTot)+' kg',10),y,fmtKg(kgTot)+' kg',10,true)}
+    alt.forEach(p=>{y2+=17;const n=conf(p).length,oc=ocorrencias(p).length,ri=revInfo(p);
+      pdf.texto(440,y2,p.pk.desenho.nome.replace('M447-ELE-SUP-',''),10,true);
+      pdf.texto(560,y2,`${ri?'Rev. '+ri.atual.rev+' · ':''}${n} novo(s) · +${fmtKg(pesoMarcas(p,m=>m.st==='conf'))} kg${oc?' · '+oc+' ocorr.':''}`,9);pdf.linha(440,y2+5,PDF_W-M,y2+5,.4,.8)});
+    // --- uma página por desenho: folha + itens + ocorrências
+    for(let i=0;i<alt.length;i++){const p=alt[i];
+      cab(p.pk.desenho.nome,`${i+1}/${alt.length}`);
+      const f=envio&&envio.folhas[i];
+      if(f){const u=URL.createObjectURL(f);try{const im=await jpegDe(u,2400),bw=PDF_W-2*M,bh=300,k=Math.min(bw/im.w,bh/im.h);
+        pdf.imagem(im,M+(bw-im.w*k)/2,56,im.w*k,im.h*k)}finally{URL.revokeObjectURL(u)}}
+      let yy=372;pdf.texto(M,yy,'Novos em verde · não montado em vermelho · alterado em laranja',8,false,'.35 .4 .45');yy+=18;
+      const grp={};conf(p).forEach(m=>grp[m.code]=(grp[m.code]||0)+1);
+      const cols=[M,M+40,M+80,M+230,M+300];pdf.retang(M,yy-11,370,15,.9);['Item','Qtde','Descrição','Unit. kg','Total kg'].forEach((t,k)=>pdf.texto(cols[k]+2,yy,t,8.5,true));
+      let sk=0;Object.keys(grp).sort().forEach(c=>{const it=p.cat[c]||{tag:'?',pesoKg:0},t=it.pesoKg*grp[c];sk+=t;yy+=14;
+        [c,String(grp[c]),it.tag,fmtKg(it.pesoKg),fmtKg(t)].forEach((v,k)=>pdf.texto(cols[k]+2,yy,v,8.5));pdf.linha(M,yy+4,M+370,yy+4,.3,.8)});
+      yy+=14;pdf.texto(cols[0]+2,yy,'Total adicionado',8.5,true);pdf.texto(cols[4]+2,yy,fmtKg(sk),8.5,true);
+      let yo=390;const oc=ocorrencias(p);
+      if(oc.length){pdf.texto(430,yo,'Ocorrências e observações',10,true);yo+=14;
+        for(const o of oc){if(yo>PDF_H-30){pdf.texto(430,yo,'(continua nas fotos)',8);break}
+          yo=pdf.bloco(430,yo,PDF_W-M-430,`${o.cod} – ${o.tit}${o.obs&&o.obs.trim()?': '+o.obs.trim():''}${o.fotos.length?` (${o.fotos.length} foto${o.fotos.length>1?'s':''})`:''}`,9,false,o.cls==='nao'?'.69 0 0':o.cls==='alt'?'.54 .29 0':null)+3}}
+    }
+    // --- fotos do campo: 6 por página
+    const fotos=[];alt.forEach(p=>ocorrencias(p).forEach(o=>o.fotos.forEach(id=>fotos.push({p,o,id}))));
+    for(let i=0;i<fotos.length;i+=6){cab('Fotos do campo',`${Math.floor(i/6)+1}/${Math.ceil(fotos.length/6)}`);
+      for(let k=0;k<6&&i+k<fotos.length;k++){const {p,o,id}=fotos[i+k],cx=M+(k%3)*258,cy=58+Math.floor(k/3)*262;
+        try{const im=await jpegDe(fotosCampo[id]||URL.createObjectURL(await blobFotoCampo(id)),1200),bw=250,bh=220,s=Math.min(bw/im.w,bh/im.h);
+          pdf.imagem(im,cx+(bw-im.w*s)/2,cy,im.w*s,im.h*s)}catch(_){pdf.texto(cx,cy+20,'(foto indisponível)',9)}
+        pdf.bloco(cx,cy+234,250,`${p.pk.desenho.nome.replace('M447-ELE-SUP-','')} · suporte ${o.cod} · ${o.tit}${o.obs&&o.obs.trim()?': '+o.obs.trim():''}`,8.5)}}
+    const blob=pdf.gerar(),nome=`RESUMO-CAMPO-${nomeArq(st.resp||'campo')||'campo'}-${carimboData()}.pdf`,file=new File([blob],nome,{type:'application/pdf'});
+    const dl=$('#pdfDl');try{URL.revokeObjectURL(dl.href)}catch(_){}dl.href=URL.createObjectURL(file);dl.download=nome;dl.hidden=false;
+    note.textContent=`PDF pronto (${(blob.size/1048576).toFixed(1)} MB).`;
+    if(navigator.canShare&&navigator.canShare({files:[file]}))try{busy(null);await navigator.share({files:[file],title:'Resumo do levantamento'})}catch(_){}
+  }catch(e){note.textContent='Não consegui montar o PDF: '+e.message}
+  finally{busy(null);btn.disabled=false}
+}
+async function enviarDireto(){
+  const note=$('#shareNote');if(!envio)return;const b=$('#direto');b.disabled=true;
+  const quando=new Date().toISOString();
+  try{
+    if(!navigator.onLine)throw Object.assign(new Error('sem internet'),{fila:true});
+    b.textContent='Enviando…';await subirRetorno(envio.zip.name,envio.zip);
+    marcarEnviados(envio.itens,quando);note.textContent='Enviado direto ao projetista.';b.textContent='Enviado ✓';$('#novoWrap').hidden=false;toast('Levantamento enviado ao projetista');
+  }catch(e){
+    if(e.definitivo){note.textContent='Não consegui enviar: '+e.message+'. Use o WhatsApp.';b.disabled=false;b.textContent='Enviar direto ao projetista';return}
+    // sem sinal (ou servidor fora): vai pra' fila e sai sozinho depois
+    await dbTx('readwrite',x=>x.put({id:quando,nome:envio.zip.name,blob:envio.zip,itens:envio.itens,criadoEm:quando}),'saida');
+    note.textContent='Sem sinal agora: o levantamento ficou na fila e sai sozinho quando a internet voltar.';b.textContent='Na fila';
+    // marca como "na fila" pra' não sair de novo num próximo envio
+    (envio.itens.marcas||[]).forEach(([k,id])=>{const m=(st.marks[k]||[]).find(x=>x.id===id);if(m)m.naFila=quando});save();renderFilaInfo();
+  }
 }
 async function enviar(){
   const note=$('#shareNote');note.textContent='';
@@ -1360,6 +1600,8 @@ async function iniciar(){
   lerLinkConfig();
   renderHome();setTitle();renderSync();
   verificarAtualizacao(false);
+  aplicarSol();processarFila();
+  try{if(!localStorage.getItem(KEY_GUIA))abrirGuia()}catch(_){}
 }
 iniciar();
 if('serviceWorker'in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});

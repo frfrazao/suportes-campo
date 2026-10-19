@@ -165,7 +165,7 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 /* final */
 .fin{max-width:1000px;margin:0 auto;padding-block:18px 48px;padding-inline:16px;display:grid;gap:18px}
 .fin h2{font-size:26px;font-weight:700}
-.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:2px;min-width:0}
 .tile .l{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .tile .v{font-family:var(--f-display);font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -197,6 +197,24 @@ tfoot td{font-weight:600;border-bottom:0}
 .recentes button{flex:none;min-width:44px;height:38px;padding:0 10px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-family:var(--f-mono);font-weight:500;font-size:15px;color:var(--fg)}
 .recentes button.on{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
 .cat .sec{font-size:12.5px;color:var(--muted);padding:6px 8px 2px;font-family:var(--f-display);font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.nota{flex-basis:100%;display:grid;gap:8px;border-top:1px dashed var(--line);padding-top:8px}
+.sit{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.sit button{min-height:40px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);font-family:var(--f-display);font-weight:600;font-size:14px;color:var(--fg);padding:0 4px}
+.sit button.on{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.sit button.on.nao{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+.sit button.on.alt{border-color:var(--warn);background:var(--warn-bg);color:var(--warn)}
+.obs-txt{margin:0;font-size:14px;background:var(--surface-2);border-radius:8px;padding:8px 10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.thumbs button,.thumbs a{padding:0;border:1px solid var(--line);border-radius:8px;background:#000;line-height:0;overflow:hidden}
+.thumbs img{width:64px;height:64px;object-fit:cover}
+.sheet textarea{min-height:110px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font:inherit;font-size:16px;resize:vertical;color:var(--fg)}
+.sheet.obs{grid-template-rows:auto auto auto auto}
+.ocs{display:grid;gap:8px}
+.ocs h4{margin:0;font-size:15px;font-weight:700}
+.oc{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.oc .meta small{white-space:pre-wrap}
+.mini.nao{border-color:var(--bad);color:var(--bad);background:var(--bad-bg)}
+.mini.alt{border-color:var(--warn);color:var(--warn);background:var(--warn-bg)}
 .toast button{margin-left:12px;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-decoration:underline;padding:4px 2px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .busy{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(10,14,20,.35)}
@@ -277,9 +295,18 @@ tfoot td{font-weight:600;border-bottom:0}
     <div class="cat" id="catList"></div>
   </div>
 </div>
+<div class="sheet-bg" id="obsBg" hidden>
+  <div class="sheet obs" role="dialog" aria-label="Observação">
+    <div class="h"><h3 id="obsTit">Observação</h3><button class="btn sm" type="button" id="obsClose">Cancelar</button></div>
+    <div class="recentes" id="obsChips"></div>
+    <textarea id="obsTxt" placeholder="Ex.: montado com 2 chumbadores a mais"></textarea>
+    <button class="btn ok" type="button" id="obsOk">Salvar observação</button>
+  </div>
+</div>
+<input id="camIn" type="file" accept="image/*" capture="environment" hidden>
 <div class="foto-bg" id="fotoBg" hidden>
   <div class="foto-box" role="dialog" aria-label="Desenho do suporte">
-    <div class="h"><span class="mini" id="fotoCod">01</span><div class="meta grow"><b id="fotoTag"></b><small id="fotoInfo"></small></div><button class="btn sm" type="button" id="fotoFechar">Fechar</button></div>
+    <div class="h"><span class="mini" id="fotoCod">01</span><div class="meta grow"><b id="fotoTag"></b><small id="fotoInfo"></small></div><button class="btn sm danger" type="button" id="fotoRm" hidden>Excluir foto</button><button class="btn sm" type="button" id="fotoFechar">Fechar</button></div>
     <div class="foto-area" id="fotoArea"><img id="fotoImg" alt="Desenho do suporte"></div>
     <p class="p" id="fotoDica">Toque no desenho para ampliar.</p>
   </div>
@@ -302,9 +329,11 @@ function busy(t){$('#busyTxt').textContent=t||'';$('#busy').hidden=!t}
 // e o desenho continua no app depois de fechar, sem internet.
 const DB_NOME='milplan-campo',DB_STORE='pacotes';
 // v2: store "fotos" (desenho de cada suporte, recortado do PDF oficial pelo plugin)
-function abrirDb(){return new Promise((ok,no)=>{try{const r=indexedDB.open(DB_NOME,2);r.onupgradeneeded=()=>{const db=r.result;
+// v3: store "fotosCampo" (fotos tiradas pelo operador, ligadas a uma marcação/suporte)
+function abrirDb(){return new Promise((ok,no)=>{try{const r=indexedDB.open(DB_NOME,3);r.onupgradeneeded=()=>{const db=r.result;
   if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE,{keyPath:'key'});
-  if(!db.objectStoreNames.contains('fotos'))db.createObjectStore('fotos',{keyPath:'codigo'})};
+  if(!db.objectStoreNames.contains('fotos'))db.createObjectStore('fotos',{keyPath:'codigo'});
+  if(!db.objectStoreNames.contains('fotosCampo'))db.createObjectStore('fotosCampo',{keyPath:'id'})};
   r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}catch(e){no(e)}})}
 async function dbTx(modo,fn,store){const db=await abrirDb();store=store||DB_STORE;return new Promise((ok,no)=>{const tx=db.transaction(store,modo),st=tx.objectStore(store);const r=fn(st);tx.oncomplete=()=>ok(r&&r.result);tx.onerror=()=>no(tx.error)})}
 // fotos dos suportes: código -> {url, tag}
@@ -344,7 +373,7 @@ async function lerZip(buf){
 }
 // revisão pelo nome do desenho: "M447-ELE-SUP-CWA17_R1" -> {base:"M447-ELE-SUP-CWA17", rev:1}
 function revDe(nome){const m=/^(.+?)[_\- ]R(\d+)$/i.exec(nome||'');return m?{base:m[1].toUpperCase(),rev:+m[2]}:{base:String(nome||'').toUpperCase(),rev:-1}}
-const temMarcas=k=>(st.marks[k]||[]).some(m=>m.st==='pend'||(m.st==='conf'&&!m.enviado));
+const temMarcas=k=>(st.marks[k]||[]).some(m=>m.st==='pend'||(m.st==='conf'&&!m.enviado))||notasEx(k).some(o=>!o.enviado);
 // outra revisão MAIS NOVA do mesmo desenho já no aparelho
 function substitutoDe(p){const r=revDe(p.pk.desenho.nome);return pacotes.find(o=>o!==p&&revDe(o.pk.desenho.nome).base===r.base&&revDe(o.pk.desenho.nome).rev>r.rev)}
 async function removerPacote(k){const i=pacotes.findIndex(p=>p.key===k);
@@ -403,10 +432,17 @@ $('#zipIn').addEventListener('change',async e=>{
 
 /* ---------- estado (marcações ficam no aparelho) ---------- */
 const KEY='milplan-campo-v1';
-let st={resp:'',code:null,marks:{},recentes:[]};
+let st={resp:'',code:null,marks:{},recentes:[],ex:{}};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.marks)st=Object.assign(st,s)}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
 const marksOf=k=>(st.marks[k]=st.marks[k]||[]);
+// pedido do usuario: "marcar um suporte existente como 'não montado' ou
+// 'alterado'" + observação + foto do campo -- por desenho, por handle do
+// balão indicado: {codigo, sit:'nao'|'alt'|'', obs, fotos:[ids], t, enviado}
+const exOf=k=>(st.ex[k]=st.ex[k]||{});
+const exKey=(e,i)=>e.handle||('i'+i);
+const temNota=o=>!!(o&&(o.sit||(o.obs&&o.obs.trim())||(o.fotos&&o.fotos.length)));
+const notasEx=k=>Object.values(st.ex[k]||{}).filter(temNota);
 let cur=null,mode='ind',sel=null,undo=[],confirmando=null;
 const P=()=>pacotes.find(p=>p.key===cur);
 let uid=Date.now();
@@ -416,19 +452,21 @@ function show(scr){['scrHome','scrDw','scrFin'].forEach(id=>$('#'+id).hidden=id!
 $('#back').onclick=()=>{if(!$('#scrFin').hidden&&cur){openDw(cur);return}cur=null;show('scrHome');renderHome();setTitle()};
 function setTitle(){const p=P();$('#ttl').textContent=p?p.pk.desenho.nome:'Suportes em Campo';$('#sub').textContent=p?(mode==='nova'?'Nova marcação':'Suportes já indicados'):'M447 · Elétrica'}
 function totalConf(){return Object.values(st.marks).reduce((a,m)=>a+m.filter(x=>x.st==='conf').length,0)}
-function renderBadge(){const n=totalConf();$('#finBadge').textContent=n;$('#finBadge').hidden=!n}
+function totalOc(){return Object.keys(st.ex).reduce((a,k)=>a+notasEx(k).length,0)}
+function renderBadge(){const n=totalConf()+totalOc();$('#finBadge').textContent=n;$('#finBadge').hidden=!n}
 
 // alerta de confirmados não enviados -- risco real de perder o trabalho se o
 // celular for trocado/limpo antes do envio
 const HORAS_ALERTA=12;
 function renderAlerta(){
   const pend=[];Object.entries(st.marks).forEach(([k,ms])=>ms.forEach(m=>{if(m.st==='conf'&&!m.enviado)pend.push(m)}));
+  Object.keys(st.ex).forEach(k=>notasEx(k).forEach(o=>{if(!o.enviado)pend.push(o)}));
   const el=$('#alerta');
   if(!pend.length){el.hidden=true;return}
   const maisVelho=Math.min(...pend.map(m=>Date.parse(m.t)||Date.now())),horas=(Date.now()-maisVelho)/36e5;
   if(horas<HORAS_ALERTA){el.hidden=true;return}
   const d=new Date(maisVelho);
-  el.innerHTML=`<b>${pend.length} suporte${pend.length>1?'s':''} confirmado${pend.length>1?'s':''} sem enviar</b><span>Marcados desde ${d.toLocaleDateString('pt-BR')} ${hhmm(d)}. Envie para o projetista ou salve uma cópia de segurança.</span><div class="row"><button class="btn ok sm" type="button" data-go-final>Enviar agora</button></div>`;
+  el.innerHTML=`<b>${pend.length} ${pend.length>1?'itens':'item'} do levantamento sem enviar</b><span>Marcados desde ${d.toLocaleDateString('pt-BR')} ${hhmm(d)}. Envie para o projetista ou salve uma cópia de segurança.</span><div class="row"><button class="btn ok sm" type="button" data-go-final>Enviar agora</button></div>`;
   el.hidden=false;
 }
 function renderHome(){
@@ -438,7 +476,7 @@ function renderHome(){
     const conf=confirmando===p.key?`<div class="confirm"><span class="grow">Tirar este desenho do aparelho${c+pe?` e apagar ${c+pe} marcação(ões)`:''}?</span><button class="btn sm danger" type="button" data-rm="${esc(p.key)}">Remover</button><button class="btn sm" type="button" data-cancel>Cancelar</button></div>`:'';
     return`<div class="card"><button type="button" class="open" data-k="${esc(p.key)}"><span class="n">${esc(p.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span><span class="f">${esc(p.pk.desenho.arquivo)}</span></button>
       <div class="acts"><button type="button" class="btn primary sm" data-k="${esc(p.key)}">Abrir</button></div>
-      <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
+      <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}${notasEx(p.key).length?`<span class="chip warn">${notasEx(p.key).length} ocorrência${notasEx(p.key).length>1?'s':''}</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
   renderBadge();
 }
 $('#alerta').addEventListener('click',e=>{if(e.target.closest('[data-go-final]'))openFinal()});
@@ -537,11 +575,13 @@ document.addEventListener('visibilitychange',()=>{
 function bkpArquivo(){
   const d=new Date(),nome=`MARCACOES-CAMPO-${nomeArq(st.resp||'campo')||'campo'}-${carimboData()}.json`;
   const dados={formato:'milplan-campo-backup/1',salvoEm:d.toISOString(),responsavel:st.resp||null,
-    desenhos:pacotes.map(p=>p.key),marks:st.marks};
+    desenhos:pacotes.map(p=>p.key),marks:st.marks,ex:st.ex,fotosCampo:{}};
+  for(const id of fotosUsadas())if(fotoCache[id])dados.fotosCampo[id]=fotoCache[id];
   return new File([JSON.stringify(dados)],nome,{type:'application/json'});
 }
 $('#bkpSalvar').onclick=async()=>{
-  const f=bkpArquivo(),n=$('#bkpNote'),total=Object.values(st.marks).reduce((a,m)=>a+m.length,0);
+  for(const id of fotosUsadas())if(!fotoCache[id])try{fotoCache[id]=await blobParaDataUrl(await blobFotoCampo(id))}catch(_){}
+  const f=bkpArquivo(),n=$('#bkpNote'),total=Object.values(st.marks).reduce((a,m)=>a+m.length,0)+totalOc();
   if(!total){n.textContent='Nenhuma marcação para salvar ainda.';return}
   const dl=$('#bkpDl');try{URL.revokeObjectURL(dl.href)}catch(_){}dl.href=URL.createObjectURL(f);dl.download=f.name;dl.hidden=false;
   if(navigator.canShare&&navigator.canShare({files:[f]})){
@@ -560,6 +600,8 @@ $('#bkpIn').addEventListener('change',async e=>{
     for(const[k,ms]of Object.entries(d.marks)){const atual=marksOf(k),ids=new Set(atual.map(m=>m.id));
       for(const m of ms)if(!ids.has(m.id)){atual.push(m);novas++}}
     if(!st.resp&&d.responsavel)st.resp=d.responsavel;
+    for(const[k,o]of Object.entries(d.ex||{})){const atual=exOf(k);for(const[h,x]of Object.entries(o))if(!temNota(atual[h])&&temNota(x)){atual[h]=x;novas++}}
+    for(const[id,url]of Object.entries(d.fotosCampo||{}))try{const b=await(await fetch(url)).blob();await guardarFotoCampo(id,b)}catch(_){}
     save();renderHome();
     const faltam=Object.keys(d.marks).filter(k=>d.marks[k].length&&!pacotes.some(p=>p.key===k));
     n.textContent=`${novas} marcação(ões) restaurada(s).`+(faltam.length?` Abra também o pacote de: ${faltam.join(', ')} para ver essas marcações.`:'');
@@ -572,6 +614,67 @@ $('#cards').addEventListener('click',async e=>{
   const r=e.target.closest('[data-rm]');if(r){await removerPacote(r.dataset.rm);confirmando=null;renderHome();toast('Desenho removido do aparelho')}
 });
 $('#resp').addEventListener('input',e=>{st.resp=e.target.value;save()});
+
+/* ---------- fotos do campo e observações ---------- */
+// pedido do usuario: "foto real do campo: o operador tira uma foto do suporte
+// montado e ela vai junto da marcação" -- reduzida (lado maior 1600 px, JPEG)
+// pra' ficar leve no WhatsApp; fica no IndexedDB, a marcação guarda só o id
+const fotosCampo={},fotoCache={}; // id -> objectURL / id -> dataURL (só pro backup)
+async function comprimirFoto(file){const u=URL.createObjectURL(file);try{const im=await loadImg(u),
+  k=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
+  c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+  return await new Promise((ok,no)=>c.toBlob(b=>b?ok(b):no(new Error('foto')),'image/jpeg',.72))}finally{URL.revokeObjectURL(u)}}
+async function guardarFotoCampo(id,blob){await dbTx('readwrite',x=>x.put({id,blob}),'fotosCampo');if(fotosCampo[id])URL.revokeObjectURL(fotosCampo[id]);fotosCampo[id]=URL.createObjectURL(blob)}
+async function blobFotoCampo(id){const r=await dbTx('readonly',x=>x.get(id),'fotosCampo');if(!r)throw new Error('foto não encontrada');return r.blob}
+const blobParaDataUrl=b=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(b)});
+function fotosUsadas(){const l=new Set();Object.values(st.marks).forEach(ms=>ms.forEach(m=>(m.fotos||[]).forEach(id=>l.add(id))));
+  Object.values(st.ex).forEach(o=>Object.values(o).forEach(x=>(x.fotos||[]).forEach(id=>l.add(id))));return l}
+// apaga do aparelho as fotos que nenhuma marcação usa mais
+async function limparFotos(){const usadas=fotosUsadas();try{const ids=await dbTx('readonly',x=>x.getAllKeys(),'fotosCampo');
+  for(const id of ids||[])if(!usadas.has(id)){await dbTx('readwrite',x=>x.delete(id),'fotosCampo');if(fotosCampo[id]){URL.revokeObjectURL(fotosCampo[id]);delete fotosCampo[id]}}}catch(e){console.warn('limpar fotos',e)}}
+// alvo da nota: {t:'m',id} (marcação nova) ou {t:'ex',i} (suporte já indicado)
+function notaDe(a,criar){
+  if(a.t==='m')return marksOf(cur).find(m=>m.id===a.id);
+  const e=P().pk.suportesExistentes[a.i],o=exOf(cur),k=exKey(e,a.i);
+  if(!o[k]&&criar)o[k]={codigo:e.codigo,sit:'',obs:'',fotos:[]};return o[k];
+}
+function limparNotasVazias(){const o=exOf(cur);Object.keys(o).forEach(k=>{if(!temNota(o[k]))delete o[k]})}
+const SIT={'':'Montado',nao:'Não montado',alt:'Alterado em campo'};
+function notaHtml(a,o,existente){
+  o=o||{};const f=o.fotos||[];
+  return`<div class="nota">${existente?`<div class="sit" role="group" aria-label="Situação em campo">${Object.entries(SIT).map(([v,t])=>`<button type="button" data-a="sit" data-v="${v}" class="${v}${(o.sit||'')===v?' on':''}">${t}</button>`).join('')}</div>`:''}
+    ${o.obs&&o.obs.trim()?`<p class="obs-txt">${esc(o.obs)}</p>`:''}
+    ${f.length?`<div class="thumbs">${f.map(id=>fotosCampo[id]?`<button type="button" data-fc="${esc(id)}" aria-label="Ver foto do campo"><img src="${fotosCampo[id]}" alt=""></button>`:'').join('')}</div>`:''}
+    <div class="row"><button type="button" class="btn sm" data-a="obs">${o.obs&&o.obs.trim()?'Editar observação':'Observação'}</button><button type="button" class="btn sm" data-a="cam">Tirar foto</button></div></div>`;
+}
+let camAlvo=null,obsAlvo=null;
+$('#camIn').addEventListener('change',async e=>{
+  const fs=[...e.target.files];e.target.value='';if(!fs.length||!camAlvo||camAlvo.k!==cur)return;
+  busy('Guardando foto…');
+  try{pushUndo('foto');const o=notaDe(camAlvo,true);if(!o)return;o.fotos=o.fotos||[];
+    for(const f of fs){const id='f'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);await guardarFotoCampo(id,await comprimirFoto(f));o.fotos.push(id)}
+    save();renderDw();toast(fs.length>1?`${fs.length} fotos guardadas`:'Foto guardada')}
+  catch(x){toast('Não consegui guardar a foto: '+x.message)}finally{busy(null)}
+});
+const OBS_RAPIDAS=['Posição aproximada','Montado diferente do desenho','Fixação diferente','Falta material','Precisa verificar'];
+function abrirObs(a){const o=notaDe(a,false)||{};obsAlvo=Object.assign({k:cur},a);
+  const cod=a.t==='m'?(o.code||''):P().pk.suportesExistentes[a.i].codigo;
+  $('#obsTit').textContent=`Observação · suporte ${cod}`;$('#obsTxt').value=o.obs||'';
+  $('#obsChips').innerHTML=OBS_RAPIDAS.map(t=>`<button type="button" data-t="${esc(t)}">${esc(t)}</button>`).join('');
+  $('#obsBg').hidden=false;}
+$('#obsChips').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;const t=$('#obsTxt');t.value=(t.value.trim()?t.value.trim()+'. ':'')+b.dataset.t;t.focus()});
+$('#obsOk').onclick=()=>{if(!obsAlvo||obsAlvo.k!==cur){$('#obsBg').hidden=true;return}pushUndo('observação');const o=notaDe(obsAlvo,true);if(o)o.obs=$('#obsTxt').value.trim();
+  limparNotasVazias();save();$('#obsBg').hidden=true;renderDw()};
+$('#obsClose').onclick=()=>$('#obsBg').hidden=true;
+$('#obsBg').addEventListener('click',e=>{if(e.target.id==='obsBg')$('#obsBg').hidden=true});
+let fotoAberta=null;
+function abrirFotoCampo(id){const a=sel&&(sel.t==='m'?{t:'m',id:sel.id}:{t:'ex',i:sel.i});
+  const o=a&&notaDe(a,false),cod=a?(a.t==='m'?o&&o.code:P().pk.suportesExistentes[a.i].codigo):'';
+  fotoAberta={id,a,k:cur};$('#fotoCod').textContent=cod||'';$('#fotoTag').textContent='Foto do campo';$('#fotoInfo').textContent='';
+  $('#fotoArea').classList.remove('zoom');$('#fotoImg').src=fotosCampo[id];$('#fotoImg').hidden=false;$('#fotoDica').textContent='Toque na foto para ampliar.';
+  $('#fotoRm').hidden=!a;$('#fotoBg').hidden=false}
+$('#fotoRm').onclick=()=>{const f=fotoAberta;if(!f||!f.a||f.k!==cur)return;pushUndo('excluir foto');const o=notaDe(f.a,false);
+  if(o)o.fotos=(o.fotos||[]).filter(x=>x!==f.id);limparNotasVazias();save();$('#fotoBg').hidden=true;renderDw();toast('Foto excluída',{rotulo:'Desfazer',fn:desfazer})};
 
 /* ---------- planta ---------- */
 const img=$('#img'),stage=$('#stage'),canvas=$('#canvas'),ov=$('#ov');
@@ -617,6 +720,8 @@ function renderOv(){
    .ld-nw{stroke:#1C8A4B;fill:#1C8A4B;stroke-width:${lw}}
    .pd circle{fill:#E6EEFB;stroke:#1D5BC4;stroke-width:${lw*1.3}} .pd text{fill:#174A9E;font-family:'IBM Plex Mono',monospace;font-weight:500}
    .ld-pd{stroke:#1D5BC4;fill:#1D5BC4;stroke-width:${lw}}
+   .ex-nao circle{fill:#FBE3E1;stroke:#C2352B} .ex-nao text{fill:#C2352B} .ex-alt circle{fill:#FBEFD8;stroke:#B86F00} .ex-alt text{fill:#8A5300}
+   .x-nao{stroke:#C2352B;stroke-width:${lw*1.4};stroke-linecap:round} .nota-dot{fill:#1D5BC4;stroke:#fff;stroke-width:${lw*.6}}
    .ghost{opacity:.28} .halo{fill:rgba(29,91,196,.14);stroke:#1D5BC4;stroke-width:${lw*1.2}}
   </style>`;
   // pedido do usuario: "substituir as folhas em branco para nova marcação pelas
@@ -625,13 +730,17 @@ function renderOv(){
   p.pk.suportesExistentes.forEach((e,i)=>{const[bx,by]=toPx(e.centro[0],e.centro[1]);
     if(sel&&sel.t==='ex'&&sel.i===i)s+=`<circle class="halo" cx="${bx}" cy="${by}" r="${r*1.45}"/>`;
     if(e.seta){const[ax,ay]=toPx(e.seta[0],e.seta[1]);s+=leaderSVG(bx,by,ax,ay,r,'ld-ex')}
-    s+=balloonSVG(bx,by,e.codigo,'ex',r,fs)});
+    const o=exOf(cur)[exKey(e,i)],sit=o&&o.sit;
+    s+=balloonSVG(bx,by,e.codigo,'ex'+(sit?' ex-'+sit:''),r,fs);
+    if(sit==='nao')s+=`<line class="x-nao" x1="${bx-r*.95}" y1="${by+r*.95}" x2="${bx+r*.95}" y2="${by-r*.95}"/>`;
+    if(o&&((o.obs&&o.obs.trim())||(o.fotos&&o.fotos.length)))s+=`<circle class="nota-dot" cx="${bx+r*.78}" cy="${by-r*.78}" r="${r*.3}"/>`});
   marksOf(cur).forEach(m=>{
     const vis=mode==='ind'?m.st==='conf':(m.st==='pend'||m.st==='conf');if(!vis)return;
     const cls=m.st==='conf'?'nw':'pd',[ax,ay]=toPx(m.ax,m.ay),[bx,by]=toPx(m.bx,m.by);
     if(sel&&sel.t==='m'&&sel.id===m.id)s+=`<circle class="halo" cx="${bx}" cy="${by}" r="${r*1.45}"/>`;
     if(m.pilha===0)s+=leaderSVG(bx,by,ax,ay,r,'ld-'+cls);
     s+=balloonSVG(bx,by,m.code,cls,r,fs);
+    if((m.obs&&m.obs.trim())||(m.fotos&&m.fotos.length))s+=`<circle class="nota-dot" cx="${bx+r*.78}" cy="${by-r*.78}" r="${r*.3}"/>`;
   });
   // arrasto bloqueado: contorno vermelho onde o dedo está (o balão fica na última posição livre)
   if(arrasto&&arrasto.bloqueado){
@@ -806,8 +915,8 @@ function place(ax,ay,n,excluirGrp){
 // pedido do usuario: "desfazer" -- volta a última ação na planta (marcação,
 // empilhamento, movimento, troca de código, exclusão, confirmação ou remoção),
 // nos dois modos; cada passo guarda o que era e em que modo estava
-function pushUndo(txt){undo.push({s:JSON.stringify(marksOf(cur)),txt:txt||'última ação',modo:mode});if(undo.length>80)undo.shift()}
-function desfazer(){const u=undo.pop();if(!u)return;st.marks[cur]=JSON.parse(u.s);mode=u.modo;sel=null;save();renderDw();toast('Desfeito: '+u.txt)}
+function pushUndo(txt){undo.push({s:JSON.stringify({m:marksOf(cur),e:exOf(cur)}),txt:txt||'última ação',modo:mode});if(undo.length>80)undo.shift()}
+function desfazer(){const u=undo.pop();if(!u)return;const o=JSON.parse(u.s);st.marks[cur]=o.m;st.ex[cur]=o.e;mode=u.modo;sel=null;save();renderDw();toast('Desfeito: '+u.txt)}
 function usouCodigo(c){st.recentes=[c,...(st.recentes||[]).filter(x=>x!==c)].slice(0,8)}
 
 /* ---------- painel ---------- */
@@ -822,9 +931,11 @@ function renderDw(){
   setTitle();renderOv();renderBadge();
   let s='';const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
   if(mode==='ind'){
-    s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}</div>`;
-    if(se){const c=catOf(se.codigo);s+=`<div class="selcard">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div></div>`}
-    if(sm){const c=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button></div>`}
+    const noc=notasEx(cur).length;
+    s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}${noc?` · <b style="color:var(--warn)">${noc}</b> com ocorrência`:''}</div>`;
+    if(!se&&!sm)s+=`<p class="note">Toque num balão para ver o desenho do suporte, marcar se ele <b>não foi montado</b> ou foi <b>alterado</b>, escrever uma observação ou tirar foto.</p>`;
+    if(se){const c=catOf(se.codigo);s+=`<div class="selcard">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div>${notaHtml({t:'ex',i:sel.i},exOf(cur)[exKey(se,sel.i)],true)}</div>`}
+    if(sm){const c=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
     if(undo.length)s+=`<div class="row"><span class="note grow">Última ação: ${esc(undo[undo.length-1].txt)}</span><button type="button" class="btn sm" data-a="undo">Desfazer</button></div>`;
     s+=`<button type="button" class="btn ok" data-a="nova">${pend.length?`Continuar nova marcação (${pend.length})`:'Nova marcação'}</button>`;
   }else{
@@ -836,14 +947,20 @@ function renderDw(){
     if(rec.length>1)s+=`<div class="recentes"><span class="lbl">Últimos:</span>${rec.map(x=>`<button type="button" data-a="rec" data-c="${esc(x)}" class="${x===st.code?'on':''}" aria-label="Usar suporte ${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
     if(sm){const cc=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ac">${esc(sm.code)}</span><div class="meta grow"><b>${esc(cc.tag)}</b><small>${sm.pilha?`Empilhado (${sm.pilha+1}º no ponto)`:'Com linha de chamada'}</small></div>
       <select data-a="code" aria-label="Trocar código">${p.pk.catalogo.map(x=>`<option value="${esc(x.codigo)}"${x.codigo===sm.code?' selected':''}>${esc(x.codigo)}</option>`).join('')}</select>
-      <button type="button" class="btn sm" data-a="del">Excluir</button></div>`}
+      <button type="button" class="btn sm" data-a="del">Excluir</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
     s+=`<div class="row"><span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}${undo.length?` title="Desfazer: ${esc(undo[undo.length-1].txt)}"`:''}>Desfazer</button></div>
       <button type="button" class="btn ok" data-a="conf"${pend.length?'':' disabled'}>Confirmar adição${pend.length?` (${pend.length})`:''}</button>`;
   }
   $('#panel').innerHTML=s;
 }
 $('#panel').addEventListener('click',e=>{
+  const fc=e.target.closest('[data-fc]');if(fc){abrirFotoCampo(fc.dataset.fc);return}
   const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,m=marksOf(cur);
+  const alvo=sel&&(sel.t==='m'?{t:'m',id:sel.id}:{t:'ex',i:sel.i});
+  if(a==='sit'&&alvo){const o=notaDe(alvo,true),v=b.dataset.v;if((o.sit||'')===v)return;pushUndo(`${SIT[v].toLowerCase()} ${o.codigo}`);o.sit=v;o.t=new Date().toISOString();delete o.enviado;
+    limparNotasVazias();save();renderDw();if(v)toast(`${o.codigo}: ${SIT[v].toLowerCase()}. Toque em Observação para explicar.`);return}
+  if(a==='obs'&&alvo){abrirObs(alvo);return}
+  if(a==='cam'&&alvo){camAlvo=Object.assign({k:cur},alvo);$('#camIn').click();return}
   if(a==='nova'){mode='nova';sel=null;renderDw()}
   else if(a==='cat')openCat();
   else if(a==='undo')desfazer();
@@ -865,7 +982,7 @@ function abrirFoto(codigo,info){
   const c=catOf(codigo),f=fotos[codigo];
   $('#fotoCod').textContent=codigo;$('#fotoTag').textContent=c.tag||(f&&f.tag)||'';
   $('#fotoInfo').textContent=(info?info+' · ':'')+(c.pesoKg?fmtKg(c.pesoKg)+' kg':'');
-  const a=$('#fotoArea');a.classList.remove('zoom');
+  const a=$('#fotoArea');a.classList.remove('zoom');$('#fotoRm').hidden=true;fotoAberta=null;
   if(f){$('#fotoImg').src=f.url;$('#fotoImg').hidden=false;$('#fotoDica').textContent='Toque no desenho para ampliar.'}
   else{$('#fotoImg').hidden=true;$('#fotoDica').textContent='Desenho deste suporte ainda não veio no pacote. Peça ao projetista para exportar de novo.'}
   $('#fotoBg').hidden=false;
@@ -925,36 +1042,57 @@ async function folhaComposta(p,conf){
   const f=p.pk.folha,im=await loadImg(p.folha),k=Math.min(1,Math.sqrt(16e6/(f.larguraPx*f.alturaPx))),mm=f.mmPorPixel/k,c=document.createElement('canvas');
   c.width=Math.floor(f.larguraPx*k);c.height=Math.floor(f.alturaPx*k);
   const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
-  const tp=(X,Y)=>[(X-f.minX)/mm,(f.maxY-Y)/mm],r=p.pk.balao.raioMm/mm,fs=p.pk.balao.alturaTextoMm/mm*1.3;
+  const tp=(X,Y)=>[(X-f.minX)/mm,(f.maxY-Y)/mm],r=p.pk.balao.raioMm/mm,fs=p.pk.balao.alturaTextoMm/mm*1.3,exs=st.ex[p.key]||{};
   const bal=(cx,cy,code,stroke,fill,txt)=>{x.beginPath();x.arc(cx,cy,r,0,7);x.fillStyle=fill;x.fill();x.lineWidth=Math.max(1.5,r*.09);x.strokeStyle=stroke;x.stroke();
     x.fillStyle=txt;x.font=`500 ${fs}px 'IBM Plex Mono',monospace`;x.textAlign='center';x.textBaseline='middle';x.fillText(code,cx,cy+fs*.04)};
   const lead=(bx,by,ax,ay,col)=>{const dx=ax-bx,dy=ay-by,L=Math.hypot(dx,dy)||1;if(L<=r)return;const ux=-dx/L,uy=-dy/L,h=r*.55,w=r*.2,qx=ax+ux*h,qy=ay+uy*h;
     x.strokeStyle=col;x.fillStyle=col;x.lineWidth=Math.max(1.2,r*.07);x.beginPath();x.moveTo(bx+dx/L*r,by+dy/L*r);x.lineTo(ax,ay);x.stroke();
     x.beginPath();x.moveTo(ax,ay);x.lineTo(qx-uy*w,qy+ux*w);x.lineTo(qx+uy*w,qy-ux*w);x.closePath();x.fill()};
-  p.pk.suportesExistentes.forEach(e=>{const[bx,by]=tp(...e.centro);if(e.seta){const[ax,ay]=tp(...e.seta);lead(bx,by,ax,ay,'#1d2530')}bal(bx,by,e.codigo,'#1d2530','#fff','#1d2530')});
+  p.pk.suportesExistentes.forEach((e,i)=>{const[bx,by]=tp(...e.centro);if(e.seta){const[ax,ay]=tp(...e.seta);lead(bx,by,ax,ay,'#1d2530')}
+    const sit=(exs[exKey(e,i)]||{}).sit;
+    if(sit==='nao'){bal(bx,by,e.codigo,'#C2352B','#FBE3E1','#C2352B');x.strokeStyle='#C2352B';x.lineWidth=Math.max(2,r*.12);x.beginPath();x.moveTo(bx-r,by+r);x.lineTo(bx+r,by-r);x.stroke()}
+    else if(sit==='alt')bal(bx,by,e.codigo,'#B86F00','#FBEFD8','#8A5300');
+    else bal(bx,by,e.codigo,'#1d2530','#fff','#1d2530')});
   conf.forEach(m=>{const[bx,by]=tp(m.bx,m.by);if(m.pilha===0){const[ax,ay]=tp(m.ax,m.ay);lead(bx,by,ax,ay,'#1C8A4B')}bal(bx,by,m.code,'#1C8A4B','#E1F3E8','#13633A')});
   return await new Promise(ok=>c.toBlob(b=>ok(b),'image/png'));
 }
+// formato /2: + observação e fotos (fotos/<id>.jpg no .zip) por suporte novo,
+// "existentes" com a situação em campo dos já indicados, e a imagem da folha
+const folhaNome=p=>nomeArq(p.pk.desenho.nome)+'-campo.png';
+const fotosRet=l=>(l||[]).map(id=>'fotos/'+id+'.jpg');
+const SIT_RET={nao:'nao-montado',alt:'alterado'};
 function retorno(){
-  return{formato:'milplan-campo-suportes-retorno/1',responsavel:st.resp||null,finalizadoEm:new Date().toISOString(),
-    desenhos:pacotes.map(p=>({arquivo:p.key,novos:marksOf(p.key).filter(m=>m.st==='conf').sort((a,b)=>a.grp-b.grp||a.pilha-b.pilha)
-      .map(m=>({codigo:m.code,seta:[m.ax,m.ay],balao:[m.bx,m.by],pilha:m.pilha,marcadoEm:m.t}))})).filter(d=>d.novos.length)};
+  return{formato:'milplan-campo-suportes-retorno/2',responsavel:st.resp||null,finalizadoEm:new Date().toISOString(),
+    desenhos:pacotes.map(p=>({arquivo:p.key,nome:p.pk.desenho.nome,folha:'folhas/'+folhaNome(p),
+      novos:marksOf(p.key).filter(m=>m.st==='conf').sort((a,b)=>a.grp-b.grp||a.pilha-b.pilha)
+        .map(m=>({codigo:m.code,seta:[m.ax,m.ay],balao:[m.bx,m.by],pilha:m.pilha,marcadoEm:m.t,
+          obs:m.obs&&m.obs.trim()?m.obs.trim():undefined,fotos:m.fotos&&m.fotos.length?fotosRet(m.fotos):undefined})),
+      existentes:p.pk.suportesExistentes.map((e,i)=>[e,exOf(p.key)[exKey(e,i)]]).filter(([,o])=>temNota(o))
+        .map(([e,o])=>({handle:e.handle||null,codigo:e.codigo,centro:e.centro,situacao:SIT_RET[o.sit]||'montado',
+          obs:o.obs&&o.obs.trim()?o.obs.trim():undefined,fotos:o.fotos&&o.fotos.length?fotosRet(o.fotos):undefined,marcadoEm:o.t}))
+    })).filter(d=>d.novos.length||d.existentes.length)};
 }
+// lista de ocorrências de um desenho pra' tela final
+function ocorrencias(p){const l=[];
+  p.pk.suportesExistentes.forEach((e,i)=>{const o=exOf(p.key)[exKey(e,i)];if(temNota(o))l.push({cod:e.codigo,cls:o.sit||'',tit:o.sit?SIT[o.sit]:'Já indicado',obs:o.obs,fotos:o.fotos||[]})});
+  marksOf(p.key).filter(m=>m.st==='conf'&&((m.obs&&m.obs.trim())||(m.fotos&&m.fotos.length))).forEach(m=>l.push({cod:m.code,cls:'ok',tit:'Novo',obs:m.obs,fotos:m.fotos||[]}));
+  return l}
 const nomeArq=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'');
 function carimboData(){const d=new Date();return`${d.getFullYear()}${pad(d.getMonth()+1,2)}${pad(d.getDate(),2)}-${pad(d.getHours(),2)}${pad(d.getMinutes(),2)}`}
 
 let envio=null; // {zip:File, folhas:[File], urls:[...]}
 async function openFinal(){
   show('scrFin');$('#ttl').textContent='Arquivo final';$('#sub').textContent='O que foi adicionado neste levantamento';
-  const alt=pacotes.filter(p=>marksOf(p.key).some(m=>m.st==='conf'));
-  let tot=0,kg=0;alt.forEach(p=>marksOf(p.key).filter(m=>m.st==='conf').forEach(m=>{tot++;kg+=p.cat[m.code]?p.cat[m.code].pesoKg:0}));
+  const alt=pacotes.filter(p=>marksOf(p.key).some(m=>m.st==='conf')||notasEx(p.key).length);
+  let tot=0,kg=0,nNao=0,nAlt=0,nOc=0;
+  alt.forEach(p=>{notasEx(p.key).forEach(o=>{if(o.sit==='nao')nNao++;else if(o.sit==='alt')nAlt++});nOc+=ocorrencias(p).filter(o=>(o.obs&&o.obs.trim())||o.fotos.length).length});alt.forEach(p=>marksOf(p.key).filter(m=>m.st==='conf').forEach(m=>{tot++;kg+=p.cat[m.code]?p.cat[m.code].pesoKg:0}));
   const pendTot=Object.values(st.marks).reduce((a,m)=>a+m.filter(x=>x.st==='pend').length,0);
   let s=`<div><h2>Arquivo final</h2><p class="note">${esc(st.resp||'Responsável não informado')} · ${new Date().toLocaleString('pt-BR')}</p></div>
-   <div class="tiles"><div class="tile"><span class="l">Desenhos alterados</span><span class="v">${alt.length}</span></div><div class="tile"><span class="l">Suportes novos</span><span class="v" style="color:var(--ok)">${tot}</span></div><div class="tile"><span class="l">Peso adicionado</span><span class="v mono" style="font-size:22px">${fmtKg(kg)} kg</span></div></div>`;
+   <div class="tiles"><div class="tile"><span class="l">Desenhos alterados</span><span class="v">${alt.length}</span></div><div class="tile"><span class="l">Suportes novos</span><span class="v" style="color:var(--ok)">${tot}</span></div><div class="tile"><span class="l">Peso adicionado</span><span class="v mono" style="font-size:22px">${fmtKg(kg)} kg</span></div>${nNao?`<div class="tile"><span class="l">Não montados</span><span class="v" style="color:var(--bad)">${nNao}</span></div>`:''}${nAlt?`<div class="tile"><span class="l">Alterados</span><span class="v" style="color:var(--warn)">${nAlt}</span></div>`:''}${nOc?`<div class="tile"><span class="l">Com obs./foto</span><span class="v">${nOc}</span></div>`:''}</div>`;
   if(pendTot)s+=`<p class="info">${pendTot} marcação(ões) ainda sem confirmar não entram no arquivo final.</p>`;
-  if(!alt.length)s+=`<p class="info">Nenhum suporte novo confirmado ainda. Abra um desenho, use <b>Nova marcação</b> e toque em <b>Confirmar adição</b>.</p>`;
+  if(!alt.length)s+=`<p class="info">Nada para enviar ainda: nenhum suporte novo confirmado nem ocorrência registrada. Abra um desenho, use <b>Nova marcação</b> e toque em <b>Confirmar adição</b>.</p>`;
   if(alt.length)s+=`<section class="send"><h3>Enviar para o projetista</h3>
-      <p class="note">Vai um arquivo <span class="mono">.zip</span> (o plugin lê ele e coloca os balões no desenho) e uma imagem de cada folha alterada, para conferir na conversa.</p>
+      <p class="note">Vai um arquivo <span class="mono">.zip</span> (o plugin lê ele, coloca os balões no desenho e monta o relatório com as observações e fotos) e uma imagem de cada folha alterada, para conferir na conversa.</p>
       ${st.resp?'':`<div class="field"><label for="respFin">Seu nome (obrigatório para enviar)</label><input id="respFin" type="text" placeholder="Nome do responsável em campo" autocomplete="name"></div>`}
       <button class="btn wa" type="button" id="share" disabled>${st.resp?'Preparando arquivos…':'Preencha seu nome para enviar'}</button>
       <div class="row"><a class="btn sm" id="dl" hidden>Baixar o .zip</a><span class="note grow" id="shareNote"></span></div>
@@ -962,9 +1100,10 @@ async function openFinal(){
   alt.forEach((p,i)=>{const conf=marksOf(p.key).filter(m=>m.st==='conf'),grp={};conf.forEach(m=>{grp[m.code]=(grp[m.code]||0)+1});let sk=0;
     const rows=Object.keys(grp).sort().map(c=>{const it=p.cat[c]||{tag:'?',pesoKg:0},t=it.pesoKg*grp[c];sk+=t;return`<tr><td class="mono">${esc(c)}</td><td class="n">${grp[c]}</td><td class="mono">${esc(it.tag)}</td><td class="n">${fmtKg(it.pesoKg)}</td><td class="n">${fmtKg(t)}</td></tr>`}).join('');
     s+=`<section class="block"><div><h3>${esc(p.pk.desenho.nome)}</h3><div class="sub">${esc(p.key)}</div></div>
-      <figure class="prev"><div class="cap"><span>Folha com os novos suportes (em verde)</span><span>A1</span></div><img id="fol${i}" alt="Folha ${esc(p.pk.desenho.nome)} com as marcações"></figure>
-      <div class="tbl"><table><thead><tr><th>Item</th><th class="n">Qtde</th><th>Descrição</th><th class="n">Peso unit.</th><th class="n">Peso total</th></tr></thead><tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="4">Total adicionado</td><td class="n">${fmtKg(sk)}</td></tr></tfoot></table></div></section>`});
+      <figure class="prev"><div class="cap"><span>Novos em verde · não montado em vermelho · alterado em laranja</span><span>A1</span></div><img id="fol${i}" alt="Folha ${esc(p.pk.desenho.nome)} com as marcações"></figure>
+      ${rows?`<div class="tbl"><table><thead><tr><th>Item</th><th class="n">Qtde</th><th>Descrição</th><th class="n">Peso unit.</th><th class="n">Peso total</th></tr></thead><tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="4">Total adicionado</td><td class="n">${fmtKg(sk)}</td></tr></tfoot></table></div>`:''}
+      ${(oc=>oc.length?`<div class="ocs"><h4>Ocorrências e observações</h4>${oc.map(o=>`<div class="oc"><span class="mini ${o.cls}">${esc(o.cod)}</span><div class="meta grow"><b>${esc(o.tit)}</b>${o.obs&&o.obs.trim()?`<small>${esc(o.obs)}</small>`:''}</div>${o.fotos.length?`<div class="thumbs">${o.fotos.map(id=>fotosCampo[id]?`<a href="${fotosCampo[id]}" target="_blank" rel="noopener"><img src="${fotosCampo[id]}" alt="Foto do campo"></a>`:'').join('')}</div>`:''}</div>`).join('')}</div>`:'')(ocorrencias(p))}</section>`});
   $('#fin').innerHTML=s;
   if(envio){envio.urls.forEach(u=>URL.revokeObjectURL(u));envio=null}
   if(!alt.length)return;
@@ -974,10 +1113,13 @@ async function openFinal(){
   entradas.push({nome:'retorno.json',dados:new TextEncoder().encode(JSON.stringify(ret,null,2))});
   for(let i=0;i<alt.length;i++){
     try{const b=await folhaComposta(alt[i],marksOf(alt[i].key).filter(m=>m.st==='conf'));
-      const nome=nomeArq(alt[i].pk.desenho.nome)+'-campo.png',u=URL.createObjectURL(b);urls.push(u);$('#fol'+i).src=u;
+      const nome=folhaNome(alt[i]),u=URL.createObjectURL(b);urls.push(u);$('#fol'+i).src=u;
       folhas.push(new File([b],nome,{type:'image/png'}));entradas.push({nome:'folhas/'+nome,dados:new Uint8Array(await b.arrayBuffer())});
     }catch(e){console.warn('folha',e)}
   }
+  // fotos do campo (já em JPEG reduzido)
+  for(const id of new Set(alt.flatMap(p=>[...marksOf(p.key).filter(m=>m.st==='conf'),...notasEx(p.key)].flatMap(x=>x.fotos||[]))))
+    try{entradas.push({nome:'fotos/'+id+'.jpg',dados:new Uint8Array(await(await blobFotoCampo(id)).arrayBuffer())})}catch(e){console.warn('foto do campo',id,e)}
   const zipNome=`RETORNO-CAMPO-${quem}-${tag}.zip`,zip=new File([criarZip(entradas)],zipNome,{type:'application/zip'}),zu=URL.createObjectURL(zip);urls.push(zu);
   envio={zip,folhas,urls};
   // pedido do usuario: o 1º retorno real chegou sem nome ("responsável não
@@ -997,10 +1139,11 @@ async function enviar(){
   for(const files of tentativas){
     if(navigator.canShare&&!navigator.canShare({files}))continue;
     try{
-      await navigator.share({files,title:'Levantamento de suportes',text:`Levantamento de suportes${st.resp?' – '+st.resp:''} (${totalConf()} novos)`});
+      await navigator.share({files,title:'Levantamento de suportes',text:`Levantamento de suportes${st.resp?' – '+st.resp:''} (${totalConf()} novos${totalOc()?`, ${totalOc()} ocorrência(s)`:''})`});
       // marca como enviados (some o alerta da tela inicial); continuam no
       // aparelho até "Começar novo levantamento"
-      const agora=new Date().toISOString();Object.values(st.marks).forEach(ms=>ms.forEach(m=>{if(m.st==='conf'&&!m.enviado)m.enviado=agora}));save();
+      const agora=new Date().toISOString();Object.values(st.marks).forEach(ms=>ms.forEach(m=>{if(m.st==='conf'&&!m.enviado)m.enviado=agora}));
+      Object.keys(st.ex).forEach(k=>notasEx(k).forEach(o=>{if(!o.enviado)o.enviado=agora}));save();
       note.textContent='Arquivos enviados.';$('#novoWrap').hidden=false;return;
     }catch(e){
       if(e&&e.name==='AbortError'){note.textContent='Envio cancelado.';return}
@@ -1011,7 +1154,7 @@ async function enviar(){
 $('#fin').addEventListener('click',e=>{
   if(e.target.id==='novo'){const b=e.target;
     if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Tocar de novo para apagar os confirmados';b.classList.add('danger');return}
-    Object.keys(st.marks).forEach(k=>{st.marks[k]=st.marks[k].filter(m=>m.st!=='conf')});save();toast('Pronto para um novo levantamento');openFinal()}
+    Object.keys(st.marks).forEach(k=>{st.marks[k]=st.marks[k].filter(m=>m.st!=='conf')});st.ex={};save();limparFotos();toast('Pronto para um novo levantamento');openFinal()}
 });
 $('#goFinal').onclick=openFinal;
 
@@ -1019,6 +1162,7 @@ $('#goFinal').onclick=openFinal;
 async function iniciar(){
   try{const todos=await dbTodos();for(const r of todos||[])addPacote(r.pk,URL.createObjectURL(r.area),URL.createObjectURL(r.folha))}catch(e){console.warn('sem armazenamento local',e)}
   try{const fs=await dbTx('readonly',st=>st.getAll(),'fotos');for(const f of fs||[])addFoto(f.codigo,f.tag,f.blob)}catch(e){console.warn('sem fotos',e)}
+  try{const usadas=fotosUsadas();for(const id of usadas){const r=await dbTx('readonly',x=>x.get(id),'fotosCampo');if(r)fotosCampo[id]=URL.createObjectURL(r.blob)}}catch(e){console.warn('sem fotos do campo',e)}
   // Android: .campo.zip compartilhado do WhatsApp direto pro app ("share
   // target" do manifest) -- o service worker guarda o arquivo e reabre a
   // página; aqui ele é importado e apagado da fila

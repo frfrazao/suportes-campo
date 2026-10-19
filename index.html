@@ -215,6 +215,24 @@ tfoot td{font-weight:600;border-bottom:0}
 .oc .meta small{white-space:pre-wrap}
 .mini.nao{border-color:var(--bad);color:var(--bad);background:var(--bad-bg)}
 .mini.alt{border-color:var(--warn);color:var(--warn);background:var(--warn-bg)}
+.prog{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.prog h3{margin:0;font-size:17px;font-weight:700}
+.barra{height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden;display:flex}
+.barra i{display:block;height:100%}
+.prog .nums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.prog .nums div{display:grid;gap:0;min-width:0}
+.prog .nums b{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums;line-height:1.1}
+.prog .nums span{font-size:11.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-family:var(--f-display);font-weight:600}
+.filtros{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.filtros button{flex:none;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-family:var(--f-display);font-weight:600;font-size:14px;color:var(--fg)}
+.filtros button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.card.est-enviar{border-left:5px solid var(--warn)}
+.card.est-pend{border-left:5px solid var(--accent)}
+.card.est-enviado{border-left:5px solid var(--ok)}
+.chip.mut{background:transparent;border:1px dashed var(--line)}
+.achabar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1.5px solid #E8590C;border-radius:10px;background:rgba(232,89,12,.08)}
+.achabar .grow{min-width:120px}
+.achabar .nav{min-width:44px;font-size:20px;padding:0 10px}
 .toast button{margin-left:12px;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-decoration:underline;padding:4px 2px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14.5px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .busy{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(10,14,20,.35)}
@@ -242,6 +260,7 @@ tfoot td{font-weight:600;border-bottom:0}
       <div><h2>Levantamento de suportes</h2><p class="lead">Abra um desenho, confira os suportes já indicados e use <b>Nova marcação</b> para marcar os que foram montados.</p></div>
       <div class="field"><label for="resp">Responsável em campo</label><input id="resp" type="text" placeholder="Seu nome" autocomplete="name"></div>
       <div class="alerta" id="alerta" hidden></div>
+      <section class="prog" id="prog" hidden></section>
       <div class="cards" id="cards"></div>
       <div class="upload">
         <p>Recebeu desenhos pelo WhatsApp? Salve o arquivo <span class="mono">.campo.zip</span> no celular e abra aqui. Ele fica guardado no aparelho.</p>
@@ -271,6 +290,7 @@ tfoot td{font-weight:600;border-bottom:0}
         <button type="button" id="mInd">Indicados</button>
         <button type="button" id="mNova" class="nova">Nova marcação</button>
       </div>
+      <button type="button" class="btn sm" id="achar" aria-label="Localizar um suporte na planta">Localizar</button>
     </div>
     <div class="canvas" id="canvas">
       <div class="stage" id="stage"><img id="img" alt="Planta do desenho"><svg id="ov" xmlns="http://www.w3.org/2000/svg"></svg></div>
@@ -293,6 +313,13 @@ tfoot td{font-weight:600;border-bottom:0}
     <div class="h"><h3>Escolher suporte</h3><button class="btn sm" type="button" id="catClose">Fechar</button></div>
     <input id="catQ" type="search" placeholder="Buscar código ou tag">
     <div class="cat" id="catList"></div>
+  </div>
+</div>
+<div class="sheet-bg" id="achaBg" hidden>
+  <div class="sheet" role="dialog" aria-label="Localizar suporte">
+    <div class="h"><h3>Onde está o suporte…</h3><button class="btn sm" type="button" id="achaClose">Fechar</button></div>
+    <input id="achaQ" type="search" placeholder="Código ou tag (ex.: 53)" inputmode="search">
+    <div class="cat" id="achaList"></div>
   </div>
 </div>
 <div class="sheet-bg" id="obsBg" hidden>
@@ -432,7 +459,7 @@ $('#zipIn').addEventListener('change',async e=>{
 
 /* ---------- estado (marcações ficam no aparelho) ---------- */
 const KEY='milplan-campo-v1';
-let st={resp:'',code:null,marks:{},recentes:[],ex:{}};
+let st={resp:'',code:null,marks:{},recentes:[],ex:{},vistos:{}};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.marks)st=Object.assign(st,s)}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
 const marksOf=k=>(st.marks[k]=st.marks[k]||[]);
@@ -469,14 +496,49 @@ function renderAlerta(){
   el.innerHTML=`<b>${pend.length} ${pend.length>1?'itens':'item'} do levantamento sem enviar</b><span>Marcados desde ${d.toLocaleDateString('pt-BR')} ${hhmm(d)}. Envie para o projetista ou salve uma cópia de segurança.</span><div class="row"><button class="btn ok sm" type="button" data-go-final>Enviar agora</button></div>`;
   el.hidden=false;
 }
+// pedido do usuario: "painel de progresso: a lista de desenhos com quantos
+// suportes foram marcados em cada um, quais já foram enviados e quais têm
+// marcações pendentes de envio"
+let filtro='todos';
+function situacaoDesenho(p){
+  const m=marksOf(p.key),conf=m.filter(x=>x.st==='conf'),pe=m.filter(x=>x.st==='pend').length,ex=notasEx(p.key);
+  const aEnviar=conf.filter(x=>!x.enviado).length+ex.filter(o=>!o.enviado).length;
+  const env=[...conf,...ex].filter(x=>x.enviado),ultEnvio=env.length?env.map(x=>x.enviado).sort().pop():null;
+  const aberto=!!(st.vistos&&st.vistos[p.key])||m.length>0||ex.length>0;
+  const est=aEnviar?'enviar':pe?'pend':env.length?'enviado':aberto?'aberto':'novo';
+  return{conf:conf.length,pe,ex:ex.length,aEnviar,enviados:env.length,ultEnvio,aberto,est};
+}
+const FILTROS={todos:['Todos',()=>true],enviar:['A enviar',d=>d.aEnviar>0],pend:['Sem confirmar',d=>d.pe>0],
+  novo:['Não abertos',d=>!d.aberto],enviado:['Enviados',d=>d.enviados>0&&!d.aEnviar]};
+function renderProg(sits){
+  const el=$('#prog');if(!pacotes.length){el.hidden=true;return}
+  const n=pacotes.length,ab=sits.filter(d=>d.aberto).length,env=sits.filter(d=>d.est==='enviado').length,
+    pend=sits.filter(d=>d.est==='enviar'||d.est==='pend').length,
+    tConf=sits.reduce((a,d)=>a+d.conf,0),tEnv=sits.reduce((a,d)=>a+d.aEnviar,0),tPe=sits.reduce((a,d)=>a+d.pe,0),tOc=sits.reduce((a,d)=>a+d.ex,0);
+  const pc=v=>(v/n*100).toFixed(1)+'%';
+  if(!FILTROS[filtro]||(filtro!=='todos'&&!sits.some(FILTROS[filtro][1])))filtro='todos';
+  el.innerHTML=`<div class="row"><h3 class="grow">Progresso</h3><span class="note">${ab} de ${n} desenho${n>1?'s':''} aberto${ab===1?'':'s'}</span></div>
+    <div class="barra" role="img" aria-label="${env} enviados, ${pend} com pendência, ${ab-env-pend} abertos sem pendência, ${n-ab} não abertos">
+      <i style="width:${pc(env)};background:var(--ok)"></i><i style="width:${pc(pend)};background:var(--warn)"></i><i style="width:${pc(Math.max(0,ab-env-pend))};background:var(--accent)"></i></div>
+    <div class="nums"><div><b style="color:var(--ok)">${tConf}</b><span>Novos confirm.</span></div><div><b style="color:var(--warn)">${tEnv}</b><span>A enviar</span></div>
+      <div><b style="color:var(--accent)">${tPe}</b><span>Sem confirmar</span></div><div><b>${tOc}</b><span>Ocorrências</span></div></div>
+    <div class="filtros" role="group" aria-label="Filtrar desenhos">${Object.entries(FILTROS).map(([k,[t,f]])=>{const c=sits.filter(f).length;
+      return k==='todos'||c?`<button type="button" data-f="${k}" class="${filtro===k?'on':''}" aria-pressed="${filtro===k}">${t} (${c})</button>`:''}).join('')}</div>`;
+  el.hidden=false;
+}
+$('#prog').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b)return;filtro=b.dataset.f;renderHome()});
+const dataHora=iso=>{const d=new Date(iso);return`${d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} ${hhmm(d)}`};
 function renderHome(){
   $('#resp').value=st.resp||'';renderAlerta();
+  const sits=new Map(pacotes.map(p=>[p.key,situacaoDesenho(p)]));renderProg([...sits.values()]);
   if(!pacotes.length){$('#cards').innerHTML='<div class="empty"><b>Nenhum desenho no aparelho</b>Toque em <b style="display:inline;font-size:inherit">Abrir pacote</b> e escolha o arquivo .campo.zip que chegou pelo WhatsApp.</div>';renderBadge();return}
-  $('#cards').innerHTML=pacotes.map(p=>{const m=marksOf(p.key),c=m.filter(x=>x.st==='conf').length,pe=m.filter(x=>x.st==='pend').length,sub=substitutoDe(p);
+  const lista=pacotes.filter(p=>FILTROS[filtro][1](sits.get(p.key)));
+  $('#cards').innerHTML=lista.map(p=>{const m=marksOf(p.key),c=m.filter(x=>x.st==='conf').length,pe=m.filter(x=>x.st==='pend').length,sub=substitutoDe(p),d=sits.get(p.key);
     const conf=confirmando===p.key?`<div class="confirm"><span class="grow">Tirar este desenho do aparelho${c+pe?` e apagar ${c+pe} marcação(ões)`:''}?</span><button class="btn sm danger" type="button" data-rm="${esc(p.key)}">Remover</button><button class="btn sm" type="button" data-cancel>Cancelar</button></div>`:'';
-    return`<div class="card"><button type="button" class="open" data-k="${esc(p.key)}"><span class="n">${esc(p.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span><span class="f">${esc(p.pk.desenho.arquivo)}</span></button>
+    return`<div class="card est-${d.est}"><button type="button" class="open" data-k="${esc(p.key)}"><span class="n">${esc(p.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span><span class="f">${esc(p.pk.desenho.arquivo)}</span></button>
       <div class="acts"><button type="button" class="btn primary sm" data-k="${esc(p.key)}">Abrir</button></div>
-      <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}${notasEx(p.key).length?`<span class="chip warn">${notasEx(p.key).length} ocorrência${notasEx(p.key).length>1?'s':''}</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
+      <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${d.aEnviar?`<span class="chip warn">${d.aEnviar} a enviar</span>`:d.enviados?`<span class="chip ok">Enviado ${dataHora(d.ultEnvio)}</span>`:''}${d.aberto?'':'<span class="chip mut">Não aberto</span>'}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}${notasEx(p.key).length?`<span class="chip warn">${notasEx(p.key).length} ocorrência${notasEx(p.key).length>1?'s':''}</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
+  if(!lista.length)$('#cards').innerHTML='<div class="empty">Nenhum desenho neste filtro.</div>';
   renderBadge();
 }
 $('#alerta').addEventListener('click',e=>{if(e.target.closest('[data-go-final]'))openFinal()});
@@ -615,6 +677,37 @@ $('#cards').addEventListener('click',async e=>{
 });
 $('#resp').addEventListener('input',e=>{st.resp=e.target.value;save()});
 
+/* ---------- localizar suporte na planta ---------- */
+// pedido do usuario: "'Onde está o suporte X?': escolher um código e o app
+// destaca na planta todos os balões dele" -- anel laranja em cada um, zoom
+// mostrando todos, e ‹ › pra' ir de um em um
+let busca=null; // {code, i}
+function balVisiveis(){const p=P(),l=[];
+  p.pk.suportesExistentes.forEach(e=>l.push({code:e.codigo,x:e.centro[0],y:e.centro[1]}));
+  marksOf(cur).forEach(m=>{if(mode==='ind'?m.st==='conf':(m.st==='pend'||m.st==='conf'))l.push({code:m.code,x:m.bx,y:m.by})});return l}
+const achados=()=>busca?balVisiveis().filter(b=>b.code===busca.code).sort((a,b)=>b.y-a.y||a.x-b.x):[];
+function renderAcha(){const q=$('#achaQ').value.trim().toLowerCase(),qn=/^\d+$/.test(q)?+q:null,cont={};
+  balVisiveis().forEach(b=>cont[b.code]=(cont[b.code]||0)+1);
+  const cods=Object.keys(cont).sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true}))
+    .filter(c=>!q||(qn!==null&&+c===qn)||c.toLowerCase().includes(q)||(catOf(c).tag||'').toLowerCase().includes(q));
+  $('#achaList').innerHTML=cods.map(c=>`<button type="button" data-c="${esc(c)}"><span class="c">${esc(c)}</span><span class="mono" style="font-size:13px">${esc(catOf(c).tag)}</span><span class="k">${cont[c]} no desenho</span></button>`).join('')
+    ||`<p class="note" style="padding:8px">${q?'Esse suporte não aparece neste desenho.':'Nenhum balão neste desenho.'}</p>`}
+$('#achar').onclick=()=>{$('#achaQ').value='';renderAcha();$('#achaBg').hidden=false};
+$('#achaQ').addEventListener('input',renderAcha);
+$('#achaQ').addEventListener('keydown',e=>{if(e.key!=='Enter')return;const b=$('#achaList button[data-c]');if(b){e.preventDefault();b.click()}});
+$('#achaClose').onclick=()=>$('#achaBg').hidden=true;
+$('#achaBg').addEventListener('click',e=>{if(e.target.id==='achaBg')$('#achaBg').hidden=true});
+$('#achaList').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(!b)return;$('#achaBg').hidden=true;
+  busca={code:b.dataset.c,i:-1};sel=null;renderDw();verAchados()});
+// zoom que mostra todos os balões achados (sem aproximar demais quando é um só)
+function verAchados(){const l=achados();if(!l.length)return;const cr=canvas.getBoundingClientRect(),rp=R()/A().mmPorPixel;
+  const ps=l.map(b=>toPx(b.x,b.y)),x0=Math.min(...ps.map(q=>q[0]))-rp*4,x1=Math.max(...ps.map(q=>q[0]))+rp*4,y0=Math.min(...ps.map(q=>q[1]))-rp*4,y1=Math.max(...ps.map(q=>q[1]))+rp*4;
+  const minS=Math.min(cr.width/W,cr.height/H)*.5;V.s=Math.max(minS,Math.min(cr.width/(x1-x0),cr.height/(y1-y0),40/rp,4));
+  V.tx=cr.width/2-(x0+x1)/2*V.s;V.ty=cr.height/2-(y0+y1)/2*V.s;applyV()}
+function irAchado(d){const l=achados();if(!l.length)return;busca.i=((busca.i<0?(d>0?-1:0):busca.i)+d+l.length)%l.length;
+  const cr=canvas.getBoundingClientRect(),rp=R()/A().mmPorPixel,[px,py]=toPx(l[busca.i].x,l[busca.i].y);
+  V.s=Math.max(V.s,Math.min(28/rp,4));V.tx=cr.width/2-px*V.s;V.ty=cr.height/2-py*V.s;applyV();renderDw()}
+
 /* ---------- fotos do campo e observações ---------- */
 // pedido do usuario: "foto real do campo: o operador tira uma foto do suporte
 // montado e ela vai junto da marcação" -- reduzida (lado maior 1600 px, JPEG)
@@ -680,7 +773,8 @@ $('#fotoRm').onclick=()=>{const f=fotoAberta;if(!f||!f.a||f.k!==cur)return;pushU
 const img=$('#img'),stage=$('#stage'),canvas=$('#canvas'),ov=$('#ov');
 let V={s:1,tx:0,ty:0},W=1,H=1;
 function openDw(k){
-  cur=k;sel=null;undo=[];const p=P();if(!p)return;
+  cur=k;sel=null;undo=[];busca=null;const p=P();if(!p)return;
+  st.vistos=st.vistos||{};if(!st.vistos[k]){st.vistos[k]=new Date().toISOString();save()}
   if(!st.code||!p.cat[st.code])st.code=p.pk.catalogo[0].codigo;
   W=p.pk.area.larguraPx;H=p.pk.area.alturaPx;
   stage.style.width=W+'px';stage.style.height=H+'px';ov.setAttribute('viewBox',`0 0 ${W} ${H}`);
@@ -722,6 +816,8 @@ function renderOv(){
    .ld-pd{stroke:#1D5BC4;fill:#1D5BC4;stroke-width:${lw}}
    .ex-nao circle{fill:#FBE3E1;stroke:#C2352B} .ex-nao text{fill:#C2352B} .ex-alt circle{fill:#FBEFD8;stroke:#B86F00} .ex-alt text{fill:#8A5300}
    .x-nao{stroke:#C2352B;stroke-width:${lw*1.4};stroke-linecap:round} .nota-dot{fill:#1D5BC4;stroke:#fff;stroke-width:${lw*.6}}
+   .achado{fill:rgba(232,89,12,.10);stroke:#E8590C;stroke-width:${lw*1.8};animation:pulsa 1.1s ease-in-out infinite} .achado.atual{stroke-width:${lw*3.2};fill:rgba(232,89,12,.22)}
+   @keyframes pulsa{0%,100%{stroke-opacity:1}50%{stroke-opacity:.35}}
    .ghost{opacity:.28} .halo{fill:rgba(29,91,196,.14);stroke:#1D5BC4;stroke-width:${lw*1.2}}
   </style>`;
   // pedido do usuario: "substituir as folhas em branco para nova marcação pelas
@@ -742,6 +838,7 @@ function renderOv(){
     s+=balloonSVG(bx,by,m.code,cls,r,fs);
     if((m.obs&&m.obs.trim())||(m.fotos&&m.fotos.length))s+=`<circle class="nota-dot" cx="${bx+r*.78}" cy="${by-r*.78}" r="${r*.3}"/>`;
   });
+  if(busca){achados().forEach((b,k)=>{const[x,y]=toPx(b.x,b.y);s+=`<circle class="achado${k===busca.i?' atual':''}" cx="${x}" cy="${y}" r="${r*1.22}"/>`})}
   // arrasto bloqueado: contorno vermelho onde o dedo está (o balão fica na última posição livre)
   if(arrasto&&arrasto.bloqueado){
     for(let k=0;k<arrasto.n;k++){const[gx,gy]=toPx(arrasto.cx,arrasto.cy+k*2*R());
@@ -930,6 +1027,10 @@ function renderDw(){
   h.textContent=mode==='nova'?'Toque onde o suporte foi montado (segure o dedo para abrir a lupa). Balão azul: toque empilha outro. Balão já marcado: mostra o desenho.':'Toque num balão para ver o desenho do suporte.';h.hidden=false;
   setTitle();renderOv();renderBadge();
   let s='';const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
+  if(busca){const n=achados().length;
+    s+=`<div class="achabar"><span class="mini">${esc(busca.code)}</span><span class="grow"><b>${n}</b> no desenho${n&&busca.i>=0?` · ${busca.i+1} de ${n}`:''}</span>
+      ${n>1?`<button type="button" class="btn sm nav" data-a="ach-prev" aria-label="Anterior">‹</button><button type="button" class="btn sm nav" data-a="ach-next" aria-label="Próximo">›</button>`:''}
+      ${n?`<button type="button" class="btn sm" data-a="ach-todos">Ver todos</button>`:''}<button type="button" class="btn sm" data-a="ach-x">Fechar</button></div>`}
   if(mode==='ind'){
     const noc=notasEx(cur).length;
     s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}${noc?` · <b style="color:var(--warn)">${noc}</b> com ocorrência`:''}</div>`;
@@ -957,6 +1058,10 @@ $('#panel').addEventListener('click',e=>{
   const fc=e.target.closest('[data-fc]');if(fc){abrirFotoCampo(fc.dataset.fc);return}
   const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,m=marksOf(cur);
   const alvo=sel&&(sel.t==='m'?{t:'m',id:sel.id}:{t:'ex',i:sel.i});
+  if(a==='ach-prev'){irAchado(-1);return}
+  if(a==='ach-next'){irAchado(1);return}
+  if(a==='ach-todos'){busca.i=-1;verAchados();renderDw();return}
+  if(a==='ach-x'){busca=null;renderDw();return}
   if(a==='sit'&&alvo){const o=notaDe(alvo,true),v=b.dataset.v;if((o.sit||'')===v)return;pushUndo(`${SIT[v].toLowerCase()} ${o.codigo}`);o.sit=v;o.t=new Date().toISOString();delete o.enviado;
     limparNotasVazias();save();renderDw();if(v)toast(`${o.codigo}: ${SIT[v].toLowerCase()}. Toque em Observação para explicar.`);return}
   if(a==='obs'&&alvo){abrirObs(alvo);return}

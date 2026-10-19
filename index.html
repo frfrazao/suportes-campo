@@ -561,7 +561,7 @@ let uid=Date.now();
 /* ---------- navegação ---------- */
 function show(scr){['scrHome','scrDw','scrFin'].forEach(id=>$('#'+id).hidden=id!==scr);$('#back').hidden=scr==='scrHome';}
 $('#back').onclick=()=>{if(!$('#scrFin').hidden&&cur){openDw(cur);return}cur=null;show('scrHome');renderHome();setTitle()};
-function setTitle(){const p=P();$('#ttl').textContent=p?p.pk.desenho.nome:'Suportes em Campo';$('#sub').textContent=p?(mode==='nova'?'Nova marcação':'Suportes já indicados'):'M447 · Elétrica'}
+function setTitle(){const p=P();$('#ttl').textContent=p?p.pk.desenho.nome.replace('M447-ELE-SUP-',''):'Suportes em Campo';$('#sub').textContent=p?(mode==='nova'?'Nova marcação':'Suportes já indicados'):'M447 · Elétrica'}
 function totalConf(){return Object.values(st.marks).reduce((a,m)=>a+m.filter(x=>x.st==='conf').length,0)}
 function totalOc(){return Object.keys(st.ex).reduce((a,k)=>a+notasEx(k).length,0)}
 function renderBadge(){const n=totalConf()+totalOc();$('#finBadge').textContent=n;$('#finBadge').hidden=!n}
@@ -1527,9 +1527,10 @@ async function gerarPdf(alt){
     const fotos=[];alt.forEach(p=>ocorrencias(p).forEach(o=>o.fotos.forEach(id=>fotos.push({p,o,id}))));
     for(let i=0;i<fotos.length;i+=6){cab('Fotos do campo',`${Math.floor(i/6)+1}/${Math.ceil(fotos.length/6)}`);
       for(let k=0;k<6&&i+k<fotos.length;k++){const {p,o,id}=fotos[i+k],cx=M+(k%3)*258,cy=58+Math.floor(k/3)*262;
+        let ih=20;
         try{const im=await jpegDe(fotosCampo[id]||URL.createObjectURL(await blobFotoCampo(id)),1200),bw=250,bh=220,s=Math.min(bw/im.w,bh/im.h);
-          pdf.imagem(im,cx+(bw-im.w*s)/2,cy,im.w*s,im.h*s)}catch(_){pdf.texto(cx,cy+20,'(foto indisponível)',9)}
-        pdf.bloco(cx,cy+234,250,`${p.pk.desenho.nome.replace('M447-ELE-SUP-','')} · suporte ${o.cod} · ${o.tit}${o.obs&&o.obs.trim()?': '+o.obs.trim():''}`,8.5)}}
+          ih=im.h*s;pdf.imagem(im,cx+(bw-im.w*s)/2,cy,im.w*s,ih)}catch(_){pdf.texto(cx,cy+12,'(foto indisponível)',9)}
+        pdf.bloco(cx,cy+ih+14,250,`${p.pk.desenho.nome.replace('M447-ELE-SUP-','')} · suporte ${o.cod} · ${o.tit}${o.obs&&o.obs.trim()?': '+o.obs.trim():''}`,8.5)}}
     const blob=pdf.gerar(),nome=`RESUMO-CAMPO-${nomeArq(st.resp||'campo')||'campo'}-${carimboData()}.pdf`,file=new File([blob],nome,{type:'application/pdf'});
     const dl=$('#pdfDl');try{URL.revokeObjectURL(dl.href)}catch(_){}dl.href=URL.createObjectURL(file);dl.download=nome;dl.hidden=false;
     note.textContent=`PDF pronto (${(blob.size/1048576).toFixed(1)} MB).`;

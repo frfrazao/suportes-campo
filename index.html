@@ -131,6 +131,9 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 @media (max-width:699px),(max-height:520px){
   .recolher{display:flex;justify-content:center;align-items:center;gap:6px;margin:-6px auto -2px;min-height:30px;padding:0 18px;border:0;border-radius:999px;background:var(--surface-2);color:var(--muted);font-family:var(--f-display);font-weight:600;font-size:13.5px}
   .panel.min>:not(.sempre){display:none}
+  .panel.min .selcard .meta,.panel.min .selcard .nota,.panel.min .selcard .foto-btn,.panel.min .bussola .lbl{display:none}
+  .panel.min .selcard{flex-wrap:nowrap;padding:6px 8px;gap:8px}.panel.min .selcard .acoes{flex:1 1 auto;flex-direction:column}.panel.min .bussola{flex:none}
+  .panel.min .bussola .grade{grid-template-columns:repeat(3,30px);grid-auto-rows:30px;gap:3px}.panel.min .bussola button{font-size:16px}
 }
 .tit-dw{display:block;font-family:var(--f-body);font-weight:500;font-size:12.5px;color:var(--muted);line-height:1.25;margin-bottom:2px;text-transform:none}
 .card .open .tit{display:block;font-family:var(--f-display);font-weight:600;font-size:14px;color:var(--muted);line-height:1.25;margin-bottom:2px}.blank-tag{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:4px 10px;border-radius:999px;background:var(--ok);color:#fff;font-family:var(--f-display);font-weight:700;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
@@ -152,6 +155,14 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 .selcard select{min-height:40px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);max-width:100%}
 /* celular: o nome do suporte não quebra letra a letra; código e Excluir descem para a linha de baixo */
 .selcard .meta{flex:1 1 150px}
+.selcard .acoes{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 100%}
+/* direção da pilha: 8 setas em volta do número de balões */
+.bussola{display:flex;align-items:center;gap:10px;flex:1 1 100%}
+.bussola .lbl{font-size:13px;color:var(--muted);line-height:1.3}
+.bussola .grade{display:grid;grid-template-columns:repeat(3,38px);grid-auto-rows:38px;gap:4px;flex:none}
+.bussola button{border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--fg);font-size:19px;line-height:1;padding:0}
+.bussola button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.bussola .c{display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:13px;color:var(--muted)}
 .selcard .meta b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* catalog sheet */
@@ -987,7 +998,7 @@ $('#exiSol').onchange=e=>{sol=e.target.checked;try{localStorage.setItem(KEY_SOL,
 $('#zcheia').onclick=()=>telaCheia(!cheia);
 const GUIA=[
   {ic:'📂',t:'1. Abra o desenho',x:'<p>Toque em <b>Abrir</b> no desenho da área. Em <b>Indicados</b> aparecem os suportes que já estão no projeto.</p><ul><li>Dois dedos: zoom. Um dedo: mover a planta.</li><li><b>Localizar</b> acha todos os balões de um código.</li></ul>'},
-  {ic:'👆',t:'2. Marque o que foi montado',x:'<p>Toque em <b>Nova marcação</b>, escolha o suporte e toque onde ele foi montado.</p><ul><li><b>Segure o dedo</b> para abrir a lupa e acertar o ponto.</li><li>Arraste um balão azul para mudar de lugar.</li><li>Toque num balão azul para empilhar outro no mesmo ponto.</li></ul>'},
+  {ic:'👆',t:'2. Marque o que foi montado',x:'<p>Toque em <b>Nova marcação</b>, escolha o suporte e toque onde ele foi montado.</p><ul><li><b>Segure o dedo</b> para abrir a lupa e acertar o ponto.</li><li>Arraste um balão azul para mudar de lugar.</li><li>Toque num balão azul para trocar o número, empilhar outro no mesmo ponto ou escolher a direção da pilha (8 direções).</li><li>Toque num balão já existente no desenho para empilhar outro nele, no mesmo sentido da pilha.</li></ul>'},
   {ic:'✅',t:'3. Confira e confirme',x:'<p>Toque em <b>Confirmar adição</b>. Errou? Use <b>Desfazer</b>.</p><ul><li>No balão: <b>Observação</b> e <b>Tirar foto</b>.</li><li>Suporte do projeto que não foi montado ou mudou: marque em <b>Indicados</b>.</li></ul>'},
   {ic:'📤',t:'4. Envie',x:'<p>Toque em <b>Finalizar</b> e depois em <b>Enviar</b>. Sem sinal, o envio direto espera na fila e sai sozinho.</p><ul><li><b>Resumo em PDF</b> gera um relatório para mostrar.</li><li><b>Aa</b> no topo: tamanho da tela, <b>modo sol</b> (sol forte), dicas, tela cheia e horizontal.</li></ul>'},
 ];
@@ -1173,7 +1184,7 @@ function renderOv(){
   if(busca){achados().forEach((b,k)=>{const[x,y]=toPx(b.x,b.y);s+=`<circle class="achado${k===busca.i?' atual':''}" cx="${x}" cy="${y}" r="${r*1.22}"/>`})}
   // arrasto bloqueado: contorno vermelho onde o dedo está (o balão fica na última posição livre)
   if(arrasto&&arrasto.bloqueado){
-    for(let k=0;k<arrasto.n;k++){const[gx,gy]=toPx(arrasto.cx,arrasto.cy+k*2*R());
+    for(let k=0;k<arrasto.n;k++){const[ox,oy]=offP(arrasto.dir,k),[gx,gy]=toPx(arrasto.cx+ox,arrasto.cy+oy);
       s+=`<circle cx="${gx}" cy="${gy}" r="${r}" fill="rgba(194,53,43,.12)" stroke="#C2352B" stroke-width="${lw*1.3}" stroke-dasharray="${r*.35} ${r*.25}"/>`}
   }
   ov.innerHTML=s;
@@ -1200,7 +1211,8 @@ canvas.addEventListener('pointerdown',e=>{
   if(cur&&P()){const[x,y]=screenToW(e.clientX,e.clientY),r=R();
     const vis=marksOf(cur).filter(m=>mode==='ind'?m.st==='conf':m.st==='pend').reverse();
     const alvo=vis.find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15);
-    if(alvo){const b0=grupoBase(alvo.grp);g.arrasto={grp:alvo.grp,x0:x,y0:y,bx0:b0.bx,by0:b0.by}}
+    if(alvo&&!alvo.anc){const b0=grupoBase(alvo.grp);g.arrasto={grp:alvo.grp,id:alvo.id,x0:x,y0:y,bx0:b0.bx,by0:b0.by}}
+    else if(alvo){}
     // pedido do usuario: "alterar a posição da seta da marcação" -- começou na
     // ponta da seta de um balão novo: arrastar muda o ponto marcado (o balão fica)
     else{const tol=Math.max(r*.6,26/V.s*A().mmPorPixel),s=vis.find(m=>m.pilha===0&&Math.hypot(m.ax-x,m.ay-y)<=tol);
@@ -1219,12 +1231,28 @@ function moverSeta(cx,cy){
 // inteira, se tiver); a ponta da seta fica no ponto marcado em campo
 let arrasto=null;
 function grupoBase(grp){const ms=marksOf(cur).filter(m=>m.grp===grp);return ms.find(m=>m.pilha===0)||ms[0]}
-function moverGrupo(grp,bx,by){const r=R();marksOf(cur).forEach(m=>{if(m.grp===grp){m.bx=Math.round(bx);m.by=Math.round(by+m.pilha*2*r)}})}
+// pedido do usuario: "ao empilhar os balões, adicionar a opção de direção de
+// empilhamento, use as 8 direções possíveis" -- m.dir (igual em toda a pilha):
+// 0 cima, 1 cima-direita, 2 direita ... 7 cima-esquerda. Balões encostados (2 raios).
+const DIRS=[[0,1],[1,1],[1,0],[1,-1],[0,-1],[-1,-1],[-1,0],[-1,1]];
+const SETA_DIR=['↑','↗','→','↘','↓','↙','←','↖'];
+const NOME_DIR=['cima','cima à direita','direita','baixo à direita','baixo','baixo à esquerda','esquerda','cima à esquerda'];
+function offP(dir,k){const d=DIRS[dir||0],f=k*2*R()/Math.hypot(d[0],d[1]);return[d[0]*f,d[1]*f]}
+function dirDoVetor(vx,vy){return((Math.round(Math.atan2(vx,vy)/(Math.PI/4))%8)+8)%8}
+// pilha: base (pilha 0, com a seta) e os de cima. Pilha que continua uma pilha
+// antiga do desenho (m.anc = centro do último balão antigo) não tem base: o
+// 1º novo é pilha 1, encostado no antigo, sem linha de chamada.
+function infoGrupo(grp){const gs=marksOf(cur).filter(m=>m.grp===grp);if(!gs.length)return null;const f=gs[0],top=Math.max(...gs.map(m=>m.pilha));
+  if(f.anc)return{gs,dir:f.dir||0,anc:f.anc,k0:1,n:top+1,x:f.anc[0],y:f.anc[1],ax:f.ax,ay:f.ay};
+  const b=gs.find(m=>m.pilha===0)||f;return{gs,dir:f.dir||0,anc:null,k0:0,n:top+1,x:b.bx,y:b.by,ax:f.ax,ay:f.ay}}
+function posGrupo(grp){const i=infoGrupo(grp);if(!i)return;i.gs.forEach(m=>{const[ox,oy]=offP(i.dir,m.pilha);m.bx=Math.round(i.x+ox);m.by=Math.round(i.y+oy)})}
+function livreGrupo(grp){const i=infoGrupo(grp);return!i||grupoLivre(i.x,i.y,i.n,grp,{dir:i.dir,k0:i.k0,ign:i.anc,seta:i.anc?null:[i.ax,i.ay]})}
+function moverGrupo(grp,bx,by){const b=grupoBase(grp);if(!b||b.anc)return;b.bx=Math.round(bx);b.by=Math.round(by);posGrupo(grp)}
 function arrastarPara(cx,cy){
-  const a=g.arrasto,[x,y]=screenToW(cx,cy),bx=a.bx0+(x-a.x0),by=a.by0+(y-a.y0),n=marksOf(cur).filter(m=>m.grp===a.grp).length;
-  if(!arrasto){pushUndo('mover balão');arrasto={grp:a.grp,n}}
+  const a=g.arrasto,[x,y]=screenToW(cx,cy),bx=a.bx0+(x-a.x0),by=a.by0+(y-a.y0),i=infoGrupo(a.grp);if(!i)return;
+  if(!arrasto){pushUndo('mover balão');arrasto={grp:a.grp,n:i.n,dir:i.dir}}
   arrasto.cx=bx;arrasto.cy=by;
-  if(grupoLivre(bx,by,n,a.grp)){moverGrupo(a.grp,bx,by);arrasto.bloqueado=false}
+  if(grupoLivre(bx,by,i.n,a.grp,{dir:i.dir,seta:[i.ax,i.ay]})){moverGrupo(a.grp,bx,by);arrasto.bloqueado=false}
   else arrasto.bloqueado=true;
   renderOv();
 }
@@ -1248,7 +1276,7 @@ function endP(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(!g
   if(g.t==='tap'&&g.arrasto&&g.moved){
     if(e.type==='pointerup')arrastarPara(e.clientX,e.clientY);
     const bloq=arrasto&&arrasto.bloqueado;arrasto=null;
-    sel={t:'m',id:(marksOf(cur).find(m=>m.grp===g.arrasto.grp&&m.pilha===0)||{}).id};
+    sel={t:'m',id:g.arrasto.id};
     save();renderDw();if(bloq)toast('Ali encosta em outro balão: ficou na última posição livre');
   }
   else if(g.t==='tap'&&g.seta&&g.moved){
@@ -1290,7 +1318,7 @@ function tap(cx,cy){
   const[x,y]=screenToW(cx,cy),p=P(),r=R(),tolMm=24/V.s*A().mmPorPixel;
   if(x<A().minX||x>A().maxX||y<A().minY||y>A().maxY)return;
   const ms=marksOf(cur).filter(m=>mode==='ind'?m.st==='conf':m.st==='pend');
-  const hitM=ms.slice().reverse().find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15||Math.hypot(m.ax-x,m.ay-y)<=tolMm);
+  const hitM=ms.slice().reverse().find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15)||ms.slice().reverse().find(m=>m.pilha===0&&Math.hypot(m.ax-x,m.ay-y)<=tolMm);
   if(mode==='nova'){
     // toque em cima de um balão já existente (indicado ou novo confirmado):
     // não marca ali -- a marcação nova nunca fica por cima das antigas
@@ -1300,24 +1328,22 @@ function tap(cx,cy){
     // pedido do usuario: "adicionar balão onde já tem balão de revisões anteriores" --
     // a janela do desenho ganha "Marcar <código> neste ponto": balão novo com a seta
     // no mesmo ponto do antigo, em lugar livre (a ponta da seta pode ser ajustada depois)
+    // pedido do usuario: "ao adicionar um balão em um já existente, empilhar o
+    // balão novo, no mesmo sentido dos outros que já estão empilhados"
     if(!hitM){
       const ie=p.pk.suportesExistentes.findIndex(e=>Math.hypot(e.centro[0]-x,e.centro[1]-y)<=r*1.05);
-      if(ie>=0){const e=p.pk.suportesExistentes[ie],pt=e.seta||e.centro;sel={t:'ex',i:ie};renderDw();
-        abrirFoto(e.codigo,'Já indicado no desenho',()=>marcarEm(pt[0],pt[1],`Suporte ${st.code} marcado no ponto do ${e.codigo}`));return}
+      if(ie>=0){const e=p.pk.suportesExistentes[ie];sel={t:'ex',i:ie};renderDw();
+        abrirFoto(e.codigo,'Já indicado no desenho',()=>empilharAntigo(ie));return}
       const mc=marksOf(cur).find(m=>m.st==='conf'&&Math.hypot(m.bx-x,m.by-y)<=r*1.05);
       if(mc){sel={t:'m',id:mc.id};renderDw();
-        abrirFoto(mc.code,'Novo, já confirmado',()=>marcarEm(mc.ax,mc.ay,`Suporte ${st.code} marcado no ponto do ${mc.code}`));return}}
-    if(!hitM){marcarEm(x,y);return}
-    pushUndo(`empilhar ${st.code}`);usouCodigo(st.code);
-    if(hitM){ // empilha no mesmo ponto, como no "Adicionar suporte"
-      const base=ms.filter(m=>m.grp===hitM.grp),top=Math.max(...base.map(m=>m.pilha)),b0=base.find(m=>m.pilha===0);
-      const m={id:++uid,grp:hitM.grp,code:st.code,ax:b0.ax,ay:b0.ay,bx:b0.bx,by:b0.by+(top+1)*2*r,pilha:top+1,st:'pend',t:new Date().toISOString()};
-      marksOf(cur).push(m);sel={t:'m',id:m.id};
-      // pilha maior encostaria em outro balão? leva a pilha inteira pra' um lugar livre
-      if(!grupoLivre(b0.bx,b0.by,top+2,hitM.grp)){const[nx,ny]=place(b0.ax,b0.ay,top+2,hitM.grp);moverGrupo(hitM.grp,nx,ny);toast(`Suporte ${st.code} empilhado (pilha afastada de outro balão)`)}
-      else toast(`Suporte ${st.code} empilhado`);
-    }
-    save();renderDw();return;
+        abrirFoto(mc.code,'Novo, já confirmado',()=>empilharNoGrupo(mc.grp));return}
+      marcarEm(x,y);return}
+    // pedido do usuario: "o usuário seleciona um balão que já foi adicionado e
+    // consegue alterar o numero dele" -- toque no balão azul seleciona (cada balão
+    // da pilha separado); empilhar, trocar número e direção ficam no painel
+    sel={t:'m',id:hitM.id};renderDw();
+    if(painelMin)toast(`Balão ${hitM.code} selecionado`);
+    return;
   }
   if(hitM){sel={t:'m',id:hitM.id}}
   else{let best=-1,bd=1e18;p.pk.suportesExistentes.forEach((e,i)=>{const d=Math.hypot(e.centro[0]-x,e.centro[1]-y);if(d<bd){bd=d;best=i}});
@@ -1334,6 +1360,87 @@ function marcarEm(x,y,aviso){
   if(navigator.vibrate)try{navigator.vibrate(15)}catch(_){}
   save();renderDw();if(aviso)toast(aviso,{rotulo:'Desfazer',fn:desfazer});
 }
+// empilha o suporte escolhido numa pilha nova (pendente ou já confirmada), no sentido dela
+function empilharNoGrupo(grp){
+  const i=infoGrupo(grp);if(!i)return;const f=i.gs[0],ant=i.gs.find(m=>m.pilha===i.n-1)||f;
+  pushUndo(`empilhar ${st.code}`);usouCodigo(st.code);
+  const m={id:++uid,grp,code:st.code,ax:f.ax,ay:f.ay,bx:f.bx,by:f.by,pilha:i.n,dir:i.dir,st:'pend',t:new Date().toISOString()};
+  if(f.anc){m.anc=f.anc;m.ext=f.ext}
+  marksOf(cur).push(m);posGrupo(grp);sel={t:'m',id:m.id};
+  let aviso=`Suporte ${st.code} empilhado no ${ant.code} (${SETA_DIR[i.dir]})`;
+  if(!livreGrupo(grp)){
+    // pilha maior encostaria em outro balão: pilha nova vai inteira pra' um lugar livre
+    if(!f.anc){const[nx,ny]=place(f.ax,f.ay,i.n+1,grp,i.dir);moverGrupo(grp,nx,ny);
+      aviso=livreGrupo(grp)?`Suporte ${st.code} empilhado (pilha afastada de outro balão)`:`Suporte ${st.code} empilhado, mas encosta em outro balão: troque a direção da pilha`}
+    else aviso=`Suporte ${st.code} empilhado, mas encosta em outro balão: troque a direção da pilha`}
+  save();renderDw();toast(aviso,{rotulo:'Desfazer',fn:desfazer});
+}
+// pilha antiga do desenho que contém o balão ie: balões encostados em linha, só
+// a base com seta. Devolve a direção (da base para o fim) e o último balão.
+function pilhaAntiga(ie){
+  const ex=P().pk.suportesExistentes,r=R(),t=ex[ie];let melhor=null;
+  const em=(x,y)=>ex.findIndex(e=>Math.hypot(e.centro[0]-x,e.centro[1]-y)<=r*.3);
+  for(let d=0;d<4;d++){const[ox,oy]=offP(d,1),run=[ie];
+    for(const sg of[1,-1]){let c=t.centro;for(let lim=0;lim<60;lim++){const j=em(c[0]+sg*ox,c[1]+sg*oy);if(j<0||run.includes(j))break;if(sg>0)run.push(j);else run.unshift(j);c=ex[j].centro}}
+    if(run.length<2)continue;
+    const comSeta=run.filter(j=>ex[j].seta);if(comSeta.length>1)continue;
+    let b,fim,dir,nota=run.length+.5;
+    if(comSeta.length===1){b=comSeta[0];if(b!==run[0]&&b!==run[run.length-1])continue}
+    else{ // coluna sem seta própria (encostada na pilha de outra base): a base é a ponta mais perto de um balão com seta
+      const dS=j=>Math.min(...ex.filter(e=>e.seta).map(e=>Math.hypot(e.centro[0]-ex[j].centro[0],e.centro[1]-ex[j].centro[1])),1e18);
+      b=dS(run[0])<=dS(run[run.length-1])?run[0]:run[run.length-1];nota=run.length}
+    if(b===run[0]){fim=run[run.length-1];dir=d}else{fim=run[0];dir=d+4}
+    if(!melhor||nota>melhor.nota)melhor={dir,fim,base:b,n:run.length,nota}}
+  return melhor;
+}
+// balão novo encostado num balão antigo (os antigos não mudam de lugar)
+function empilharAntigo(ie){
+  const ex=P().pk.suportesExistentes,e=ex[ie],ch=pilhaAntiga(ie),fim=ch?ex[ch.fim]:e,anc=[fim.centro[0],fim.centro[1]];
+  // essa pilha antiga já ganhou balões novos? continua neles
+  const gx=marksOf(cur).find(m=>m.anc&&Math.hypot(m.anc[0]-anc[0],m.anc[1]-anc[1])<1);
+  if(gx){empilharNoGrupo(gx.grp);return}
+  const base=ch?ex[ch.base]:e,seta=base.seta||base.centro;
+  const livre=d=>grupoLivre(anc[0],anc[1],2,null,{dir:d,k0:1,ign:anc});
+  let dir=ch?ch.dir:null,aviso='';
+  if(dir===null||!livre(dir)){
+    const pref=[];if(dir!==null)pref.push(dir);
+    if(!ch&&base.seta){const vx=e.centro[0]-seta[0],vy=e.centro[1]-seta[1];if(Math.hypot(vx,vy)>1)pref.push(dirDoVetor(vx,vy))}
+    pref.push(0,4,2,6,1,3,5,7);
+    const d2=pref.find(livre);
+    if(d2===undefined){aviso='Sem espaço livre em volta: o balão encosta em outro. Troque a direção da pilha no painel.';if(dir===null)dir=0}
+    else{if(dir!==null&&d2!==dir)aviso=`Seguindo a pilha encostaria em outro balão: empilhado para ${NOME_DIR[d2]}. Troque a direção no painel se preferir.`;dir=d2}}
+  pushUndo(`empilhar ${st.code}`);usouCodigo(st.code);
+  const id=++uid,m={id,grp:id,code:st.code,ax:Math.round(seta[0]),ay:Math.round(seta[1]),bx:0,by:0,pilha:1,dir,anc,ext:{handle:fim.handle||null,codigo:fim.codigo},st:'pend',t:new Date().toISOString()};
+  marksOf(cur).push(m);posGrupo(id);sel={t:'m',id};
+  if(navigator.vibrate)try{navigator.vibrate(15)}catch(_){}
+  save();renderDw();toast(aviso||`Suporte ${st.code} empilhado no ${fim.codigo} (${SETA_DIR[dir]})`,{rotulo:'Desfazer',fn:desfazer});
+}
+// "dar a opção de reempilhar todos em um sentido": muda a direção da pilha
+// inteira (só os balões novos se mexem). Se não couber ali, procura outro
+// lugar para a base; se nada couber, não muda.
+function reempilhar(grp,dir){
+  const i=infoGrupo(grp);if(!i||i.dir===dir)return;
+  const antes=JSON.stringify(marksOf(cur));pushUndo(`pilha para ${NOME_DIR[dir]}`);
+  i.gs.forEach(m=>{m.dir=dir;if(m.st==='conf')delete m.enviado});posGrupo(grp);
+  if(!livreGrupo(grp)&&!i.anc){const[nx,ny]=place(i.ax,i.ay,i.n,grp,dir);moverGrupo(grp,nx,ny)}
+  if(!livreGrupo(grp)){st.marks[cur]=JSON.parse(antes);undo.pop();renderDw();toast(`Para ${NOME_DIR[dir]} a pilha encosta em outro balão`);return}
+  save();renderDw();toast(`Pilha virada para ${NOME_DIR[dir]} ${SETA_DIR[dir]}`,{rotulo:'Desfazer',fn:desfazer});
+}
+// tira um balão só; os de cima descem um lugar. Se sair a base, o próximo vira
+// a base no mesmo lugar e com a mesma seta.
+function removerMarca(id){
+  const x=marksOf(cur).find(q=>q.id===id);if(!x)return;
+  st.marks[cur]=marksOf(cur).filter(q=>q!==x);
+  const gs=marksOf(cur).filter(q=>q.grp===x.grp).sort((a,b)=>a.pilha-b.pilha);if(!gs.length)return;
+  const k0=x.anc?1:0;if(!x.anc&&x.pilha===0){gs[0].bx=x.bx;gs[0].by=x.by}
+  gs.forEach((q,i)=>{if(q.pilha!==i+k0){q.pilha=i+k0;if(q.st==='conf')delete q.enviado}});posGrupo(x.grp);
+}
+function bussola(grp){const i=infoGrupo(grp);if(!i||(i.gs.length<2&&!i.anc))return'';
+  return`<div class="bussola"><div class="grade" role="group" aria-label="Direção da pilha">${[7,0,1,6,-1,2,5,4,3].map(d=>d<0?`<span class="c" title="Balões novos na pilha">${i.gs.length}</span>`:`<button type="button" data-a="dir" data-d="${d}" class="${d===i.dir?'on':''}" aria-pressed="${d===i.dir}" aria-label="Empilhar para ${NOME_DIR[d]}">${SETA_DIR[d]}</button>`).join('')}</div>
+    <span class="lbl">Direção da pilha<br><b>${NOME_DIR[i.dir]}</b>${i.anc?`<br>continua o ${esc((i.gs[0].ext||{}).codigo||'balão antigo')}`:''}</span></div>`}
+function descPilha(m){const i=infoGrupo(m.grp);if(!i)return'';
+  if(i.anc)return`Empilhado no ${esc((m.ext||{}).codigo||'balão antigo')} (${m.pilha}º acima)`;
+  return m.pilha?`Empilhado (${m.pilha+1}º de ${i.n})`:(i.n>1?`Base da pilha de ${i.n}`:'Com linha de chamada')}
 // centros de todos os balões ocupando espaço (indicados + novos), menos os do grupo informado
 function ocupados(excluirGrp){
   const l=P().pk.suportesExistentes.map(e=>e.centro);
@@ -1349,12 +1456,16 @@ function linhasOcupadas(excluirGrp){
 // uma pilha de n balões com base em (bx,by) cabe sem encostar em nenhum outro
 // balão NEM ficar em cima de linha de chamada antiga, e dentro da planta?
 // (pedido do usuario: "que as marcações novas não sobreponham as marcações antigas")
-function grupoLivre(bx,by,n,excluirGrp){
-  const r=R(),a=A(),min=2*r*1.04,occ=ocupados(excluirGrp),lin=linhasOcupadas(excluirGrp);
-  if(bx<a.minX+r||bx>a.maxX-r||by<a.minY+r||by+(n-1)*2*r>a.maxY-r)return false;
-  for(let k=0;k<n;k++){const cy=by+k*2*r;
-    if(occ.some(c=>Math.hypot(c[0]-bx,c[1]-cy)<min))return false;
-    if(lin.some(s=>distSeg(bx,cy,s[0],s[1],s[2],s[3])<r*1.02))return false}
+// o: dir (direção da pilha), k0 (1ª posição a conferir), ign (centro do balão
+// antigo onde a pilha encosta de propósito), seta (ponta da seta da própria pilha)
+function grupoLivre(bx,by,n,excluirGrp,o){
+  o=o||{};const r=R(),a=A(),min=2*r*1.04,ign=o.ign,lin=linhasOcupadas(excluirGrp);
+  const occ=ocupados(excluirGrp).filter(c=>!ign||Math.hypot(c[0]-ign[0],c[1]-ign[1])>1);
+  for(let k=o.k0||0;k<n;k++){const[ox,oy]=offP(o.dir,k),cx=bx+ox,cy=by+oy;
+    if(cx<a.minX+r||cx>a.maxX-r||cy<a.minY+r||cy>a.maxY-r)return false;
+    if(occ.some(c=>Math.hypot(c[0]-cx,c[1]-cy)<min))return false;
+    if(lin.some(s=>distSeg(cx,cy,s[0],s[1],s[2],s[3])<r*1.02))return false;
+    if(k>0&&o.seta&&distSeg(cx,cy,o.seta[0],o.seta[1],bx,by)<r*1.02)return false}
   return true;
 }
 // a linha de chamada nova (seta -> balão) passaria por cima de algum balão já existente?
@@ -1365,11 +1476,11 @@ function linhaCruzaBalao(ax,ay,bx,by,excluirGrp){
 // centro do balão (base da pilha): primeira posição livre ao redor do ponto,
 // em 8 direções e distâncias crescentes -- nunca encosta em outro balão; de
 // preferência também sem a linha nova cruzar balão antigo
-function place(ax,ay,n,excluirGrp){
-  const r=R();n=n||1;let reserva=null;
+function place(ax,ay,n,excluirGrp,dir){
+  const r=R();n=n||1;let reserva=null;const o={dir:dir||0,seta:[ax,ay]};
   for(const d of [3.2,4.6,6.2,8,10,12.5,15.5,19,24,30])for(let k=0;k<8;k++){
     const ang=Math.PI/4+k*Math.PI/4,bx=ax+Math.cos(ang)*d*r,by=ay+Math.sin(ang)*d*r;
-    if(!grupoLivre(bx,by,n,excluirGrp))continue;
+    if(!grupoLivre(bx,by,n,excluirGrp,o))continue;
     if(!linhaCruzaBalao(ax,ay,bx,by,excluirGrp))return[Math.round(bx),Math.round(by)];
     reserva=reserva||[Math.round(bx),Math.round(by)];
   }
@@ -1392,7 +1503,7 @@ function renderDw(){
   $('#mInd').textContent=`Indicados (${p.pk.suportesExistentes.length+conf.length})`;
   $('#mNova').textContent=pend.length?`Nova marcação (${pend.length})`:'Nova marcação';
   const h=$('#hint');h.className='ov hint'+(mode==='nova'?' nova':'');
-  const txt=mode==='nova'?'Toque onde o suporte foi montado (segure o dedo para abrir a lupa). Balão azul: toque empilha outro; arraste para mover. Bolinha na ponta da seta: arraste para mudar o ponto. Balão já marcado: mostra o desenho e deixa marcar outro suporte ali.':'Toque num balão para ver o desenho do suporte.';
+  const txt=mode==='nova'?'Toque onde o suporte foi montado (segure o dedo para abrir a lupa). Balão azul: toque para selecionar (trocar número, empilhar, direção da pilha); arraste para mover. Bolinha na ponta da seta: arraste para mudar o ponto. Balão já marcado: mostra o desenho e deixa empilhar outro suporte nele.':'Toque num balão para ver o desenho do suporte.';
   // a dica cobre a planta no celular: some no 1º toque na planta e volta pelo botão "?"
   h.innerHTML=`<span>${esc(txt)}</span><button type="button" class="x" aria-label="Fechar dica">✕</button>`;
   h.hidden=dicaOculta[mode]===undefined?!dicasLig:dicaOculta[mode];$('#zdica').setAttribute('aria-pressed',String(!h.hidden));
@@ -1411,7 +1522,8 @@ function renderDw(){
     {const ki=pesoIndicados(p),kn=pesoMarcas(p,x=>x.st==='conf');s+=`<div class="kgline">Peso no desenho <b>${fmtKg(ki+kn)} kg</b>${kn?` · <b class="ok">+${fmtKg(kn)} kg</b> novos`:''}</div>`}
     if(!se&&!sm)s+=`<p class="note dica">Toque num balão para ver o desenho do suporte, marcar se ele <b>não foi montado</b> ou foi <b>alterado</b>, escrever uma observação ou tirar foto.</p>`;
     if(se){const c=catOf(se.codigo);s+=`<div class="selcard sempre">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div>${notaHtml({t:'ex',i:sel.i},exOf(cur)[exKey(se,sel.i)],true)}</div>`}
-    if(sm){const c=catOf(sm.code);s+=`<div class="selcard sempre">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
+    if(sm){const c=catOf(sm.code);s+=`<div class="selcard sempre">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg${sm.pilha||sm.anc?' · '+descPilha(sm):''}</small></div>
+      <div class="acoes"><button type="button" class="btn sm" data-a="trocar">Trocar número</button><button type="button" class="btn sm" data-a="unconf">Remover</button></div>${bussola(sm.grp)}${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
     if(undo.length)s+=`<div class="row"><span class="note grow">Última ação: ${esc(undo[undo.length-1].txt)}</span><button type="button" class="btn sm" data-a="undo">Desfazer</button></div>`;
     s+=`<button type="button" class="btn ok sempre" data-a="nova">${pend.length?`Continuar nova marcação (${pend.length})`:'Nova marcação'}</button>`;
   }else{
@@ -1423,9 +1535,9 @@ function renderDw(){
     // troca rápida entre os suportes mais usados, sem abrir a lista
     const rec=(st.recentes||[]).filter(x=>p.cat[x]).slice(0,6);
     if(rec.length>1)s+=`<div class="recentes"><span class="lbl">Últimos:</span>${rec.map(x=>`<button type="button" data-a="rec" data-c="${esc(x)}" class="${x===st.code?'on':''}" aria-label="Usar suporte ${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
-    if(sm){const cc=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ac">${esc(sm.code)}</span><div class="meta grow"><b>${esc(cc.tag)}</b><small>${sm.pilha?`Empilhado (${sm.pilha+1}º no ponto)`:'Com linha de chamada'}</small></div>
-      <select data-a="code" aria-label="Trocar código">${p.pk.catalogo.map(x=>`<option value="${esc(x.codigo)}"${x.codigo===sm.code?' selected':''}>${esc(x.codigo)}</option>`).join('')}</select>
-      <button type="button" class="btn sm" data-a="del">Excluir</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
+    if(sm){const cc=catOf(sm.code);s+=`<div class="selcard sempre">${fotoBtn(sm.code)}<span class="mini ${sm.st==='conf'?'ok':'ac'}">${esc(sm.code)}</span><div class="meta grow"><b>${esc(cc.tag)}</b><small>${sm.st==='conf'?'Já confirmado · ':''}${descPilha(sm)}</small></div>
+      <div class="acoes"><button type="button" class="btn sm" data-a="trocar">Trocar número</button><button type="button" class="btn sm ok" data-a="empilhar">Empilhar ${esc(st.code)}</button>${sm.st==='pend'?'<button type="button" class="btn sm" data-a="del">Excluir</button>':''}</div>
+      ${bussola(sm.grp)}${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
     if(pend.length)s+=`<div class="kgline">Esta marcação soma <b class="ok">+${fmtKg(pesoMarcas(p,x=>x.st==='pend'))} kg</b></div>`;
     s+=`<div class="row sempre">${painelMin?`<button type="button" class="mini ok" data-a="cat" style="width:36px;height:36px;font-size:14px" aria-label="Suporte ${esc(st.code)}: trocar">${esc(st.code)}</button>`:''}<span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}${undo.length?` title="Desfazer: ${esc(undo[undo.length-1].txt)}"`:''}>Desfazer</button></div>
       <button type="button" class="btn ok sempre" data-a="conf"${pend.length?'':' disabled'}>Confirmar adição${pend.length?` (${pend.length})`:''}</button>`;
@@ -1451,15 +1563,22 @@ $('#panel').addEventListener('click',e=>{
   else if(a==='cat')openCat();
   else if(a==='undo')desfazer();
   else if(a==='rec'){st.code=b.dataset.c;save();renderDw()}
-  else if(a==='del'){pushUndo('excluir '+(m.find(q=>q.id===sel.id)||{}).code);const x=m.find(q=>q.id===sel.id);if(x){st.marks[cur]=m.filter(q=>q!==x&&!(x.pilha===0&&q.grp===x.grp&&q.st==='pend'))}sel=null;save();renderDw()}
+  else if(a==='trocar'&&sel&&sel.t==='m'){catAlvo=sel.id;openCat()}
+  else if(a==='empilhar'&&sel&&sel.t==='m'){const x=m.find(q=>q.id===sel.id);if(x)empilharNoGrupo(x.grp)}
+  else if(a==='dir'&&sel&&sel.t==='m'){const x=m.find(q=>q.id===sel.id);if(x)reempilhar(x.grp,+b.dataset.d)}
+  else if(a==='del'){const x=m.find(q=>q.id===sel.id);if(x){pushUndo('excluir '+x.code);removerMarca(x.id)}sel=null;save();renderDw();if(x)toast(`Balão ${x.code} excluído`,{rotulo:'Desfazer',fn:desfazer})}
   else if(a==='conf'){const n=m.filter(x=>x.st==='pend');pushUndo('confirmação');n.forEach(x=>{x.st='conf';x.t=new Date().toISOString()});sel=null;mode='ind';save();renderDw();toast(`${n.length} suporte${n.length>1?'s':''} adicionado${n.length>1?'s':''} ao arquivo final`,{rotulo:'Desfazer',fn:desfazer})}
-  else if(a==='unconf'){pushUndo('remover '+(m.find(q=>q.id===sel.id)||{}).code);const x=m.find(q=>q.id===sel.id);if(x)st.marks[cur]=m.filter(q=>q!==x&&!(x.pilha===0&&q.grp===x.grp));sel=null;save();renderDw();toast('Removido do arquivo final',{rotulo:'Desfazer',fn:desfazer})}
+  else if(a==='unconf'){const x=m.find(q=>q.id===sel.id);if(x){pushUndo('remover '+x.code);removerMarca(x.id)}sel=null;save();renderDw();toast('Removido do arquivo final',{rotulo:'Desfazer',fn:desfazer})}
 });
-$('#panel').addEventListener('change',e=>{const s=e.target.closest('select[data-a="code"]');if(!s)return;pushUndo('trocar código');const x=marksOf(cur).find(q=>q.id===sel.id);if(x){x.code=s.value;usouCodigo(s.value)}save();renderDw()});
 $('#mInd').onclick=()=>{mode='ind';sel=null;renderDw()};
 $('#mNova').onclick=()=>{mode='nova';sel=null;renderDw()};
 
-function openCat(){$('#catBg').hidden=false;$('#catQ').value='';renderCat();}
+// catAlvo: id do balão cujo número está sendo trocado (null = escolher o suporte da marcação)
+let catAlvo=null;
+function openCat(){const x=catAlvo!=null&&marksOf(cur).find(q=>q.id===catAlvo);if(!x)catAlvo=null;
+  $('#catBg .h h3').textContent=x?`Trocar o número do balão ${x.code}`:'Escolher suporte';
+  $('#catBg').hidden=false;$('#catQ').value='';renderCat();}
+function fecharCat(){$('#catBg').hidden=true;catAlvo=null}
 // pedido do usuario: "ao clicar sobre um balão de suporte já adicionado na
 // planta, apareça a foto do desenho do suporte" -- desenho recortado da
 // moldura do M447-ELE-SUP-000 (chega no pacote, ver SuporteFotos no plugin)
@@ -1469,8 +1588,8 @@ function abrirFoto(codigo,info,marcar){
   const c=catOf(codigo),f=fotos[codigo];
   // na nova marcação: botão para marcar o suporte escolhido no ponto deste balão
   fotoAcao=marcar||null;$('#fotoAcao').hidden=!marcar;
-  if(marcar){const cc=catOf(st.code);$('#fotoMarcar').textContent=`Marcar ${st.code} neste ponto`;
-    $('#fotoAcaoNota').textContent=`Montado outro suporte aqui? Marca o ${st.code} (${cc.tag}) com a seta no mesmo ponto deste balão. Para outro código, feche e troque o suporte no painel.`}
+  if(marcar){const cc=catOf(st.code);$('#fotoMarcar').textContent=`Empilhar ${st.code} neste balão`;
+    $('#fotoAcaoNota').textContent=`Montado outro suporte aqui? Empilha o ${st.code} (${cc.tag}) encostado neste balão, no mesmo sentido da pilha. A direção pode ser trocada depois no painel. Para outro código, feche e troque o suporte no painel.`}
   $('#fotoCod').textContent=codigo;$('#fotoTag').textContent=c.tag||(f&&f.tag)||'';
   $('#fotoInfo').textContent=(info?info+' · ':'')+(c.pesoKg?fmtKg(c.pesoKg)+' kg':'');
   const a=$('#fotoArea');a.classList.remove('zoom');$('#fotoRm').hidden=true;fotoAberta=null;
@@ -1495,13 +1614,17 @@ function renderCat(){const q=$('#catQ').value.trim().toLowerCase(),cat=P().pk.ca
   else{const rec=(st.recentes||[]).map(x=>cat.find(c=>c.codigo===x)).filter(Boolean).slice(0,6);
     html=(rec.length?`<div class="sec">Últimos usados</div>${rec.map(itemCat).join('')}<div class="sec">Todos</div>`:'')+cat.map(itemCat).join('')}
   $('#catList').innerHTML=html||'<p class="note" style="padding:8px">Nenhum suporte com esse código ou tag.</p>'}
-function itemCat(c){return`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===st.code?'on':''}${fotos[c.codigo]?' com-foto':''}">${fotos[c.codigo]?`<img class="foto-mini" loading="lazy" src="${fotos[c.codigo].url}" alt="Ver desenho do ${esc(c.codigo)}" data-foto="${esc(c.codigo)}">`:''}<span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`}
+function itemCat(c){const at=catAlvo!=null?(marksOf(cur).find(q=>q.id===catAlvo)||{}).code:st.code;return`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===at?'on':''}${fotos[c.codigo]?' com-foto':''}">${fotos[c.codigo]?`<img class="foto-mini" loading="lazy" src="${fotos[c.codigo].url}" alt="Ver desenho do ${esc(c.codigo)}" data-foto="${esc(c.codigo)}">`:''}<span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`}
 $('#catQ').addEventListener('input',renderCat);
 // Enter na busca escolhe o primeiro da lista
 $('#catQ').addEventListener('keydown',e=>{if(e.key!=='Enter')return;const b=$('#catList button[data-c]');if(b){e.preventDefault();b.click()}});
-$('#catList').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(!b)return;st.code=b.dataset.c;usouCodigo(st.code);save();$('#catBg').hidden=true;renderDw()});
-$('#catClose').onclick=()=>$('#catBg').hidden=true;
-$('#catBg').addEventListener('click',e=>{if(e.target.id==='catBg')$('#catBg').hidden=true});
+$('#catList').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(!b)return;const c=b.dataset.c;
+  if(catAlvo!=null){const x=marksOf(cur).find(q=>q.id===catAlvo);fecharCat();
+    if(x&&x.code!==c){const de=x.code;pushUndo(`trocar ${de} por ${c}`);x.code=c;delete x.enviado;x.t=x.st==='conf'?new Date().toISOString():x.t;usouCodigo(c);sel={t:'m',id:x.id};save();renderDw();toast(`Balão ${de} trocado para ${c}`,{rotulo:'Desfazer',fn:desfazer})}
+    return}
+  st.code=c;usouCodigo(st.code);save();fecharCat();renderDw()});
+$('#catClose').onclick=fecharCat;
+$('#catBg').addEventListener('click',e=>{if(e.target.id==='catBg')fecharCat()});
 
 let tt;function toast(t,acao){const el=$('#toast');el.textContent=t;
   if(acao){const b=document.createElement('button');b.type='button';b.textContent=acao.rotulo;b.onclick=()=>{el.hidden=true;acao.fn()};el.appendChild(b)}
@@ -1557,7 +1680,8 @@ function retorno(){
   return{formato:'milplan-campo-suportes-retorno/2',responsavel:st.resp||null,finalizadoEm:new Date().toISOString(),
     desenhos:pacotes.map(p=>({arquivo:p.key,nome:p.pk.desenho.nome,folha:'folhas/'+folhaNome(p),
       novos:marksOf(p.key).filter(m=>m.st==='conf').sort((a,b)=>a.grp-b.grp||a.pilha-b.pilha)
-        .map(m=>({codigo:m.code,seta:[m.ax,m.ay],balao:[m.bx,m.by],pilha:m.pilha,marcadoEm:m.t,
+        .map(m=>({codigo:m.code,seta:[m.ax,m.ay],balao:[m.bx,m.by],pilha:m.pilha,direcao:NOME_DIR[m.dir||0],
+          empilhadoEm:m.anc?{handle:(m.ext||{}).handle||null,codigo:(m.ext||{}).codigo||null,centro:m.anc}:undefined,marcadoEm:m.t,
           obs:m.obs&&m.obs.trim()?m.obs.trim():undefined,fotos:m.fotos&&m.fotos.length?fotosRet(m.fotos):undefined})),
       existentes:p.pk.suportesExistentes.map((e,i)=>[e,exOf(p.key)[exKey(e,i)]]).filter(([,o])=>temNota(o))
         .map(([e,o])=>({handle:e.handle||null,codigo:e.codigo,centro:e.centro,situacao:SIT_RET[o.sit]||'montado',
@@ -1788,12 +1912,20 @@ async function enviar(){
     avisoEnvio(`<b>O .zip foi salvo no celular.</b> Este navegador não envia arquivos direto para o WhatsApp. Abra o WhatsApp e anexe o arquivo. ${PASSO_ZIP(envio.zip.name)}`);
     return;
   }
-  if(!zipJunto)baixarZip(); // Android: o .zip não pode ir pelo compartilhar; fica em Downloads
+  // pedido do usuario: "no enviar pelo whatsapp o celular não permitiu" -- o
+  // .zip era baixado ANTES do compartilhar, e o download gasta o "toque do
+  // usuário" que o compartilhar exige (NotAllowedError). Agora o compartilhar é
+  // a 1ª coisa do toque e o .zip só é salvo depois. O Chrome também recusa mais
+  // de 10 arquivos ou volume grande: tira folhas (elas também vão dentro do .zip).
+  files=files.slice(0,10);const tam=l=>l.reduce((t,f)=>t+f.size,0);
+  while(files.length>1&&tam(files)>40e6)files=files.slice(0,-1);
+  let erro=null;
   try{
     await navigator.share({files}); // sem title/text: com texto, o WhatsApp do iPhone descarta os arquivos
-  }catch(e){
-    if(e&&e.name==='AbortError'){avisoEnvio(zipJunto?'Envio cancelado. Toque de novo em <b>Enviar pelo WhatsApp</b> quando quiser.':`Envio das folhas cancelado. O .zip continua salvo no celular. ${PASSO_ZIP(envio.zip.name)}`);return}
-    if(zipJunto)baixarZip();
+  }catch(e){erro=e||new Error('erro')}
+  if(!zipJunto||erro&&erro.name!=='AbortError')baixarZip(); // Android: o .zip não vai pelo compartilhar; fica em Downloads
+  if(erro){const e=erro;
+    if(e.name==='AbortError'){avisoEnvio(zipJunto?'Envio cancelado. Toque de novo em <b>Enviar pelo WhatsApp</b> quando quiser.':`Envio das folhas cancelado. O .zip foi salvo no celular. ${PASSO_ZIP(envio.zip.name)}`);return}
     avisoEnvio(`<b>O celular não deixou compartilhar</b> (${esc(e&&(e.message||e.name)||'erro')}). O .zip foi salvo no celular. ${PASSO_ZIP(envio.zip.name)}`,'info aviso');
     return;
   }

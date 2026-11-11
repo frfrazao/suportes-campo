@@ -308,6 +308,46 @@ tfoot td{font-weight:600;border-bottom:0}
   .panel{grid-column:2;grid-row:2;max-height:none;border-top:0;border-left:1px solid var(--line);align-content:start}
 }
 @media (max-width:420px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* pedido do usuario: "visualização horizontal no mobile, redimensionar tudo que esteja
+   na tela, fechar balões de dicas, tela cheia" */
+/* tamanho da tela (Exibição): tudo menos a planta, que tem o próprio zoom */
+.top,.modebar,.panel,#scrHome,#scrFin,.ov,.sheet,.foto-box,.guia,.toast{zoom:var(--ui,1)}
+/* celular deitado: cabeçalho e barra baixos, painel estreito ao lado da planta */
+@media (orientation:landscape) and (max-height:500px){
+  .top{padding:3px 10px;gap:8px}
+  .top h1{font-size:16px}
+  .top p{font-size:11.5px}
+  .top .btn.sm{min-height:34px;padding:0 10px}
+  /* planta na altura toda: a barra dos modos sobe para a coluna do painel */
+  .dw{grid-template-columns:minmax(0,1fr) 270px;grid-template-rows:auto minmax(0,1fr)}
+  .dw.pmin{grid-template-columns:minmax(0,1fr) 190px}
+  .dw .canvas{grid-column:1;grid-row:1 / 3}
+  .modebar{grid-column:2;grid-row:1;padding:6px 8px;gap:6px;border-left:1px solid var(--line)}
+  .modebar .seg{max-width:none;flex:1 1 100%}
+  .modebar .seg button{padding:0 4px;font-size:13px;white-space:nowrap}
+  .modebar #achar{flex:1 1 100%}
+  .panel .foto-btn{display:none}
+  .panel .meta b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seg button{min-height:34px;font-size:14px}
+  .modebar .btn.sm{min-height:34px}
+  .panel{grid-column:2;grid-row:2;max-height:none;border-top:0;border-left:1px solid var(--line);align-content:start;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));gap:8px}
+  .recolher{margin:0 auto}
+  .zoomctl button{width:42px;height:36px}
+  .hint{max-width:min(440px,calc(100% - 70px))}
+}
+/* tela cheia: sem o cabeçalho; painel recolhido */
+html[data-cheia] .top{display:none}
+html[data-cheia] .app{grid-template-rows:minmax(0,1fr)}
+html[data-cheia] .modebar{padding-top:calc(4px + env(safe-area-inset-top,0px))}
+.hint{padding-right:38px}
+.hint .x{position:absolute;right:4px;top:4px;width:30px;height:30px;border:0;border-radius:6px;background:transparent;color:inherit;font-size:16px;line-height:1}
+html[data-sem-dicas] .dica{display:none}
+.sheet.exi{grid-template-rows:none}
+.exi-lin{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.exi-lin small{display:block;color:var(--muted);font-size:13px}
+.exi-lin .pct{min-width:52px;text-align:center;font-family:var(--f-mono)}
+.exi-lin input[type=checkbox]{width:26px;height:26px;min-height:0;padding:0}
+.exi-lin .btn{flex:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -316,7 +356,7 @@ tfoot td{font-weight:600;border-bottom:0}
   <header class="top">
     <button class="btn ghost sm" id="back" type="button" hidden aria-label="Voltar aos desenhos">‹ Desenhos</button>
     <div class="t"><h1 id="ttl">Suportes em Campo</h1><p id="sub">M447 · Elétrica</p></div>
-    <button class="btn ghost sm" id="solBtn" type="button" aria-pressed="false" aria-label="Modo sol (alto contraste)" title="Modo sol">☀</button>
+    <button class="btn ghost sm" id="exiBtn" type="button" aria-label="Exibição: tamanho da tela, modo sol, dicas e tela cheia" title="Exibição">Aa</button>
     <button class="btn sm" id="goFinal" type="button">Finalizar <span class="badge" id="finBadge" hidden>0</span></button>
   </header>
 
@@ -365,6 +405,7 @@ tfoot td{font-weight:600;border-bottom:0}
         <button type="button" id="zin" aria-label="Aproximar">+</button>
         <button type="button" id="zout" aria-label="Afastar">−</button>
         <button type="button" id="zdica" aria-label="Mostrar ou esconder a dica" aria-pressed="false">?</button>
+        <button type="button" id="zcheia" aria-label="Tela cheia" aria-pressed="false">⛶</button>
         <button type="button" id="zfit">Ajustar</button>
       </div>
       <div class="ov readout" id="readout">X — · Y —</div>
@@ -401,6 +442,17 @@ tfoot td{font-weight:600;border-bottom:0}
     <div class="recentes" id="obsChips"></div>
     <textarea id="obsTxt" placeholder="Ex.: montado com 2 chumbadores a mais"></textarea>
     <button class="btn ok" type="button" id="obsOk">Salvar observação</button>
+  </div>
+</div>
+<div class="sheet-bg" id="exiBg" hidden>
+  <div class="sheet exi" role="dialog" aria-label="Exibição">
+    <div class="h"><h3>Exibição</h3><button class="btn sm" type="button" id="exiClose">Fechar</button></div>
+    <div class="exi-lin"><span class="grow" style="flex-basis:100%"><b>Tamanho da tela</b><small>Letras, botões e painéis (a planta tem o próprio zoom)</small></span>
+      <button class="btn sm" type="button" data-x="menos" aria-label="Diminuir">A−</button><span class="pct" id="exiPct">100%</span><button class="btn sm" type="button" data-x="mais" aria-label="Aumentar">A+</button><button class="btn sm ghost" type="button" data-x="normal">Normal</button></div>
+    <label class="exi-lin"><span class="grow"><b>Dicas na tela</b><small>Desligadas, o “?” ao lado do zoom mostra a dica quando precisar</small></span><input type="checkbox" id="exiDicas"></label>
+    <label class="exi-lin"><span class="grow"><b>Modo sol</b><small>Alto contraste, linhas mais grossas e botões maiores</small></span><input type="checkbox" id="exiSol"></label>
+    <div class="exi-lin"><button class="btn" type="button" data-x="cheia" id="exiCheia">Tela cheia</button><button class="btn" type="button" data-x="girar">Horizontal</button></div>
+    <p class="note">Horizontal: no Android o app deita sozinho em tela cheia; no iPhone, gire o celular (o app se ajusta).</p>
   </div>
 </div>
 <input id="camIn" type="file" accept="image/*" capture="environment" hidden>
@@ -594,7 +646,8 @@ const P=()=>pacotes.find(p=>p.key===cur);
 let uid=Date.now();
 
 /* ---------- navegação ---------- */
-function show(scr){['scrHome','scrDw','scrFin'].forEach(id=>$('#'+id).hidden=id!==scr);$('#back').hidden=scr==='scrHome';}
+function show(scr){['scrHome','scrDw','scrFin'].forEach(id=>$('#'+id).hidden=id!==scr);$('#back').hidden=scr==='scrHome';
+  if(scr!=='scrDw'&&cheia)telaCheia(false)}
 $('#back').onclick=()=>{if(!$('#scrFin').hidden&&cur){openDw(cur);return}cur=null;show('scrHome');renderHome();setTitle()};
 function setTitle(){const p=P();$('#ttl').textContent=p?codCurto(p):'Suportes em Campo';
   // o modo já aparece nos botões Indicados/Nova marcação: no subtítulo vai o título do carimbo
@@ -879,13 +932,64 @@ $('#histBg').addEventListener('click',e=>{if(e.target.id==='histBg')$('#histBg')
 const KEY_SOL='milplan-campo-sol',KEY_GUIA='milplan-campo-guia';
 let sol=false;try{sol=localStorage.getItem(KEY_SOL)==='1'}catch(_){}
 function aplicarSol(){document.documentElement.toggleAttribute('data-sol',false);if(sol)document.documentElement.setAttribute('data-sol','1');
-  $('#solBtn').setAttribute('aria-pressed',String(sol));if(cur&&P()&&!$('#scrDw').hidden)renderOv()}
-$('#solBtn').onclick=()=>{sol=!sol;try{localStorage.setItem(KEY_SOL,sol?'1':'0')}catch(_){}aplicarSol();toast(sol?'Modo sol ligado: alto contraste':'Modo sol desligado')};
+  $('#exiSol').checked=sol;if(cur&&P()&&!$('#scrDw').hidden)renderOv()}
+
+/* ---------- exibição: tamanho da tela, dicas, tela cheia, horizontal ---------- */
+const KEY_UI='milplan-campo-ui',KEY_DICAS='milplan-campo-dicas';
+let escalaUi=1;try{escalaUi=Math.min(1.5,Math.max(.8,+localStorage.getItem(KEY_UI)||1))}catch(_){}
+let dicasLig=true;try{dicasLig=localStorage.getItem(KEY_DICAS)!=='0'}catch(_){}
+let cheia=false,painelAntesCheia=false;
+function aplicarExibicao(){
+  document.documentElement.style.setProperty('--ui',String(escalaUi));
+  document.documentElement.toggleAttribute('data-sem-dicas',!dicasLig);
+  $('#exiPct').textContent=Math.round(escalaUi*100)+'%';$('#exiDicas').checked=dicasLig;$('#exiSol').checked=sol;
+  $('#exiCheia').textContent=cheia?'Sair da tela cheia':'Tela cheia';
+  $('#zcheia').setAttribute('aria-pressed',String(cheia));$('#zcheia').setAttribute('aria-label',cheia?'Sair da tela cheia':'Tela cheia');
+  if(cur&&P()&&!$('#scrDw').hidden)renderDw();
+}
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+// chamada direto do toque (o navegador só deixa entrar em tela cheia num gesto do usuário)
+function entrarFS(){const d=document.documentElement,f=d.requestFullscreen||d.webkitRequestFullscreen;
+  if(fsEl())return Promise.resolve(true);if(!f)return Promise.resolve(false);
+  try{return Promise.resolve(f.call(d,{navigationUI:'hide'})).then(()=>true,()=>false)}catch(_){return Promise.resolve(false)}}
+function sairFS(){const f=document.exitFullscreen||document.webkitExitFullscreen;if(fsEl()&&f)try{f.call(document)}catch(_){}}
+const instalado=()=>navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;
+// "tela cheia" do app: sem cabeçalho e com o painel recolhido; no Android (e no
+// computador) também a tela cheia do navegador. O iPhone não deixa: lá vale o app instalado.
+async function telaCheia(on){
+  if(on===cheia)return true;cheia=on;let ok=true;
+  if(on){painelAntesCheia=painelMin;painelMin=true;document.documentElement.setAttribute('data-cheia','1');
+    const p=entrarFS();aplicarExibicao();ok=await p;
+    if(!ok&&!instalado())toast('Este celular não esconde a barra do navegador. Para ganhar a tela toda, instale o app: Compartilhar › Adicionar à Tela de Início.');}
+  else{painelMin=painelAntesCheia;document.documentElement.removeAttribute('data-cheia');
+    try{if(screen.orientation&&screen.orientation.unlock)screen.orientation.unlock()}catch(_){}sairFS();aplicarExibicao()}
+  return ok;
+}
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{if(!fsEl()&&cheia)telaCheia(false)}));
+async function horizontal(){
+  const ok=await telaCheia(true); // Android só trava a tela deitada em tela cheia
+  if(ok&&fsEl()&&screen.orientation&&screen.orientation.lock){try{await screen.orientation.lock('landscape');toast('Tela deitada. Para voltar: ⛶ ao lado do zoom.');return}catch(_){}}
+  toast('Gire o celular de lado: o app se ajusta à tela deitada.');
+}
+$('#exiBtn').onclick=()=>{aplicarExibicao();$('#exiBg').hidden=false};
+$('#exiBg').addEventListener('click',e=>{
+  if(e.target.id==='exiBg'||e.target.id==='exiClose'){$('#exiBg').hidden=true;return}
+  const b=e.target.closest('[data-x]');if(!b)return;const x=b.dataset.x;
+  if(x==='menos'||x==='mais'||x==='normal'){
+    escalaUi=x==='normal'?1:Math.min(1.5,Math.max(.8,Math.round((escalaUi+(x==='mais'?.1:-.1))*10)/10));
+    try{localStorage.setItem(KEY_UI,String(escalaUi))}catch(_){}aplicarExibicao()}
+  else if(x==='cheia'){$('#exiBg').hidden=true;telaCheia(!cheia)}
+  else if(x==='girar'){$('#exiBg').hidden=true;horizontal()}
+});
+$('#exiDicas').onchange=e=>{dicasLig=e.target.checked;Object.keys(dicaOculta).forEach(k=>delete dicaOculta[k]);
+  try{localStorage.setItem(KEY_DICAS,dicasLig?'1':'0')}catch(_){}aplicarExibicao()};
+$('#exiSol').onchange=e=>{sol=e.target.checked;try{localStorage.setItem(KEY_SOL,sol?'1':'0')}catch(_){}aplicarSol()};
+$('#zcheia').onclick=()=>telaCheia(!cheia);
 const GUIA=[
   {ic:'📂',t:'1. Abra o desenho',x:'<p>Toque em <b>Abrir</b> no desenho da área. Em <b>Indicados</b> aparecem os suportes que já estão no projeto.</p><ul><li>Dois dedos: zoom. Um dedo: mover a planta.</li><li><b>Localizar</b> acha todos os balões de um código.</li></ul>'},
   {ic:'👆',t:'2. Marque o que foi montado',x:'<p>Toque em <b>Nova marcação</b>, escolha o suporte e toque onde ele foi montado.</p><ul><li><b>Segure o dedo</b> para abrir a lupa e acertar o ponto.</li><li>Arraste um balão azul para mudar de lugar.</li><li>Toque num balão azul para empilhar outro no mesmo ponto.</li></ul>'},
   {ic:'✅',t:'3. Confira e confirme',x:'<p>Toque em <b>Confirmar adição</b>. Errou? Use <b>Desfazer</b>.</p><ul><li>No balão: <b>Observação</b> e <b>Tirar foto</b>.</li><li>Suporte do projeto que não foi montado ou mudou: marque em <b>Indicados</b>.</li></ul>'},
-  {ic:'📤',t:'4. Envie',x:'<p>Toque em <b>Finalizar</b> e depois em <b>Enviar</b>. Sem sinal, o envio direto espera na fila e sai sozinho.</p><ul><li><b>Resumo em PDF</b> gera um relatório para mostrar.</li><li>☀ no topo liga o <b>modo sol</b>, para ler no sol forte.</li></ul>'},
+  {ic:'📤',t:'4. Envie',x:'<p>Toque em <b>Finalizar</b> e depois em <b>Enviar</b>. Sem sinal, o envio direto espera na fila e sai sozinho.</p><ul><li><b>Resumo em PDF</b> gera um relatório para mostrar.</li><li><b>Aa</b> no topo: tamanho da tela, <b>modo sol</b> (sol forte), dicas, tela cheia e horizontal.</li></ul>'},
 ];
 let guiaI=0;
 function renderGuia(){const g=GUIA[guiaI];$('#guiaCorpo').innerHTML=`<div class="ic">${g.ic}</div><h3>${g.t}</h3>${g.x}`;
@@ -1078,8 +1182,8 @@ function renderOv(){
 /* ---------- toque / zoom ---------- */
 const ptrs=new Map();let g=null;
 const dicaOculta={};
-function esconderDica(){if(!dicaOculta[mode]){dicaOculta[mode]=true;$('#hint').hidden=true;$('#zdica').setAttribute('aria-pressed','false')}}
-$('#zdica').onclick=()=>{dicaOculta[mode]=!dicaOculta[mode];const h=$('#hint');h.hidden=dicaOculta[mode];$('#zdica').setAttribute('aria-pressed',String(!h.hidden))};
+function esconderDica(){if(!$('#hint').hidden){dicaOculta[mode]=true;$('#hint').hidden=true;$('#zdica').setAttribute('aria-pressed','false')}}
+$('#zdica').onclick=()=>{const h=$('#hint');dicaOculta[mode]=!h.hidden;h.hidden=dicaOculta[mode];$('#zdica').setAttribute('aria-pressed',String(!h.hidden))};
 $('#hint').addEventListener('click',esconderDica);
 canvas.addEventListener('pointerdown',e=>{
   if(e.target.closest('.ov'))return;
@@ -1288,9 +1392,11 @@ function renderDw(){
   $('#mInd').textContent=`Indicados (${p.pk.suportesExistentes.length+conf.length})`;
   $('#mNova').textContent=pend.length?`Nova marcação (${pend.length})`:'Nova marcação';
   const h=$('#hint');h.className='ov hint'+(mode==='nova'?' nova':'');
-  h.textContent=mode==='nova'?'Toque onde o suporte foi montado (segure o dedo para abrir a lupa). Balão azul: toque empilha outro; arraste para mover. Bolinha na ponta da seta: arraste para mudar o ponto. Balão já marcado: mostra o desenho e deixa marcar outro suporte ali.':'Toque num balão para ver o desenho do suporte.';
+  const txt=mode==='nova'?'Toque onde o suporte foi montado (segure o dedo para abrir a lupa). Balão azul: toque empilha outro; arraste para mover. Bolinha na ponta da seta: arraste para mudar o ponto. Balão já marcado: mostra o desenho e deixa marcar outro suporte ali.':'Toque num balão para ver o desenho do suporte.';
   // a dica cobre a planta no celular: some no 1º toque na planta e volta pelo botão "?"
-  h.hidden=!!dicaOculta[mode];$('#zdica').setAttribute('aria-pressed',String(!h.hidden));
+  h.innerHTML=`<span>${esc(txt)}</span><button type="button" class="x" aria-label="Fechar dica">✕</button>`;
+  h.hidden=dicaOculta[mode]===undefined?!dicasLig:dicaOculta[mode];$('#zdica').setAttribute('aria-pressed',String(!h.hidden));
+  $('#scrDw').classList.toggle('pmin',painelMin);
   setTitle();renderOv();renderBadge();
   let s=`<button type="button" class="recolher sempre" data-a="painel" aria-expanded="${!painelMin}">${painelMin?'▴ Mostrar painel':'▾ Recolher painel'}</button>`;
   const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
@@ -1303,7 +1409,7 @@ function renderDw(){
     s+=`<div class="stat"><b>${p.pk.suportesExistentes.length}</b> já indicados no desenho${conf.length?` · <b style="color:var(--ok)">${conf.length}</b> novos confirmados`:''}${noc?` · <b style="color:var(--warn)">${noc}</b> com ocorrência`:''}</div>`;
     {const ri=revInfo(p);if(ri)s+=`<div class="row"><span class="kgline grow">Revisão no celular <b>Rev. ${ri.atual.rev}</b>${ri.atual.data?` de ${esc(dataCurta(ri.atual.data))}`:''}${ri.nova?` · <b style="color:var(--warn)">existe Rev. ${ri.nova.rev}</b>`:''}</span>${ri.total?`<button type="button" class="btn sm" data-a="hist">Histórico (${ri.total})</button>`:''}</div>`}
     {const ki=pesoIndicados(p),kn=pesoMarcas(p,x=>x.st==='conf');s+=`<div class="kgline">Peso no desenho <b>${fmtKg(ki+kn)} kg</b>${kn?` · <b class="ok">+${fmtKg(kn)} kg</b> novos`:''}</div>`}
-    if(!se&&!sm)s+=`<p class="note">Toque num balão para ver o desenho do suporte, marcar se ele <b>não foi montado</b> ou foi <b>alterado</b>, escrever uma observação ou tirar foto.</p>`;
+    if(!se&&!sm)s+=`<p class="note dica">Toque num balão para ver o desenho do suporte, marcar se ele <b>não foi montado</b> ou foi <b>alterado</b>, escrever uma observação ou tirar foto.</p>`;
     if(se){const c=catOf(se.codigo);s+=`<div class="selcard sempre">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div>${notaHtml({t:'ex',i:sel.i},exOf(cur)[exKey(se,sel.i)],true)}</div>`}
     if(sm){const c=catOf(sm.code);s+=`<div class="selcard sempre">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
     if(undo.length)s+=`<div class="row"><span class="note grow">Última ação: ${esc(undo[undo.length-1].txt)}</span><button type="button" class="btn sm" data-a="undo">Desfazer</button></div>`;
@@ -1722,7 +1828,7 @@ async function iniciar(){
   lerLinkConfig();
   renderHome();setTitle();renderSync();
   verificarAtualizacao(false);
-  aplicarSol();processarFila();
+  aplicarSol();aplicarExibicao();processarFila();
   try{if(!localStorage.getItem(KEY_GUIA))abrirGuia()}catch(_){}
 }
 iniciar();

@@ -110,7 +110,10 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 .tog{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted)}
 .tog input{width:20px;height:20px}
 .canvas{position:relative;overflow:hidden;background:#DDE2E8;touch-action:none;min-height:0}
-.stage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+/* will-change só durante o gesto: fixo, o Chrome rasteriza a planta no zoom inicial e
+   depois só amplia o bitmap (planta borrada no celular) */
+.stage{position:absolute;left:0;top:0;transform-origin:0 0}
+.stage.mov{will-change:transform}
 .stage img{display:block;width:100%;height:100%;max-width:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;pointer-events:none;background:#fff}
 .stage svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .ov{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
@@ -120,7 +123,17 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 .hint{left:10px;top:10px;max-width:min(330px,calc(100% - 80px));padding:8px 11px;font-size:13.5px}
 .hint.nova{background:var(--ok);color:#fff;border-color:var(--ok)}
 .readout{left:10px;bottom:10px;padding:5px 9px;font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
-.blank-tag{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:4px 10px;border-radius:999px;background:var(--ok);color:#fff;font-family:var(--f-display);font-weight:700;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+@media (pointer:coarse){.readout{display:none}}
+.zoomctl button#zdica{font-size:18px;font-family:var(--f-display);font-weight:700}
+.zoomctl button#zdica[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+/* painel recolhível no celular (pedido: "melhorar a visibilidade mobile") */
+.recolher{display:none}
+@media (max-width:699px),(max-height:520px){
+  .recolher{display:flex;justify-content:center;align-items:center;gap:6px;margin:-6px auto -2px;min-height:30px;padding:0 18px;border:0;border-radius:999px;background:var(--surface-2);color:var(--muted);font-family:var(--f-display);font-weight:600;font-size:13.5px}
+  .panel.min>:not(.sempre){display:none}
+}
+.tit-dw{display:block;font-family:var(--f-body);font-weight:500;font-size:12.5px;color:var(--muted);line-height:1.25;margin-bottom:2px;text-transform:none}
+.card .open .tit{display:block;font-family:var(--f-display);font-weight:600;font-size:14px;color:var(--muted);line-height:1.25;margin-bottom:2px}.blank-tag{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:4px 10px;border-radius:999px;background:var(--ok);color:#fff;font-family:var(--f-display);font-weight:700;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
 
 .panel{background:var(--surface);border-top:1px solid var(--line);padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;max-height:46vh;overflow:auto}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -137,6 +150,9 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 .meta small{color:var(--muted);font-size:13px}
 .selcard{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;flex-wrap:wrap}
 .selcard select{min-height:40px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);max-width:100%}
+/* celular: o nome do suporte não quebra letra a letra; código e Excluir descem para a linha de baixo */
+.selcard .meta{flex:1 1 150px}
+.selcard .meta b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* catalog sheet */
 .sheet-bg{position:fixed;inset:0;z-index:30;background:rgba(10,14,20,.45);display:flex;align-items:flex-end;justify-content:center}
@@ -348,6 +364,7 @@ tfoot td{font-weight:600;border-bottom:0}
       <div class="ov zoomctl">
         <button type="button" id="zin" aria-label="Aproximar">+</button>
         <button type="button" id="zout" aria-label="Afastar">−</button>
+        <button type="button" id="zdica" aria-label="Mostrar ou esconder a dica" aria-pressed="false">?</button>
         <button type="button" id="zfit">Ajustar</button>
       </div>
       <div class="ov readout" id="readout">X — · Y —</div>
@@ -392,6 +409,7 @@ tfoot td{font-weight:600;border-bottom:0}
     <div class="h"><span class="mini" id="fotoCod">01</span><div class="meta grow"><b id="fotoTag"></b><small id="fotoInfo"></small></div><button class="btn sm danger" type="button" id="fotoRm" hidden>Excluir foto</button><button class="btn sm" type="button" id="fotoFechar">Fechar</button></div>
     <div class="foto-area" id="fotoArea"><img id="fotoImg" alt="Desenho do suporte"></div>
     <p class="p" id="fotoDica">Toque no desenho para ampliar.</p>
+    <div class="p" id="fotoAcao" hidden><button class="btn ok" type="button" id="fotoMarcar"></button><p class="note" id="fotoAcaoNota"></p></div>
   </div>
 </div>
 <div class="lupa" id="lupa" hidden><div class="in" id="lupaIn"></div></div>
@@ -479,6 +497,23 @@ async function lerZip(buf){
 // revisão pelo nome do desenho: "M447-ELE-SUP-CWA17_R1" -> {base:"M447-ELE-SUP-CWA17", rev:1}
 function revDe(nome){const m=/^(.+?)[_\- ]R(\d+)$/i.exec(nome||'');return m?{base:m[1].toUpperCase(),rev:+m[2]}:{base:String(nome||'').toUpperCase(),rev:-1}}
 const temMarcas=k=>(st.marks[k]||[]).some(m=>m.st==='pend'||(m.st==='conf'&&!m.enviado))||notasEx(k).some(o=>!o.enviado);
+// pedido do usuario: "adicionar o nome dos desenhos na frente dos CWA" = título do
+// carimbo. Vem em desenho.titulo quando o plugin mandar; até lá, os títulos lidos
+// dos carimbos das folhas do pacote de 30/10/2026 (chave = nome sem a revisão)
+const TITULOS={
+  'M447-ELE-SUP-CWA13_14-P0':'PRÉDIO DA FLOTAÇÃO RECLEANER - SUPORTES - PLANTA PISO 0',
+  'M447-ELE-SUP-CWA13_14-P1':'PRÉDIO DA FLOTAÇÃO RECLEANER - SUPORTES - PLANTA 2/6 E DETALHE',
+  'M447-ELE-SUP-CWA13_14-P2':'PRÉDIO DA FLOTAÇÃO RECLEANER - SUPORTES - PLANTA 3/6 E DETALHE',
+  'M447-ELE-SUP-CWA13_14-P3':'PRÉDIO DA FLOTAÇÃO RECLEANER - SUPORTES - PLANTA 4/6 E DETALHE',
+  'M447-ELE-SUP-CWA17':'AMOSTRAGEM DE REJEITOS - SUPORTES - PLANTAS E CORTES',
+  'M447-ELE-SUP-CWA20-P0-P1':'0783-SE-01 - SUPORTES - PLANTA SALA DE CABOS E GALPÃO',
+  'M447-ELE-SUP-CWA20-P2':'0783-SE-01 - SUPORTES - PLANTA SALA DE PAINÉIS',
+  'M447-ELE-SUP-CWA23':'CASA DE COMPRESSORES - SUPORTES - PLANTA',
+};
+// sem o "- SUPORTES -" do meio (todos são de suportes): "CASA DE COMPRESSORES – PLANTA"
+function tituloDe(p){const d=p.pk.desenho,t=d.titulo||TITULOS[revDe(d.nome).base]||'';
+  return t.replace(/\s*-\s*SUPORTES\s*-\s*/i,' – ').replace(/\s*-\s*SUPORTES\s*$/i,'').trim()}
+const codCurto=p=>p.pk.desenho.nome.replace('M447-ELE-SUP-','');
 // outra revisão MAIS NOVA do mesmo desenho já no aparelho
 function substitutoDe(p){const r=revDe(p.pk.desenho.nome);return pacotes.find(o=>o!==p&&revDe(o.pk.desenho.nome).base===r.base&&revDe(o.pk.desenho.nome).rev>r.rev)}
 async function removerPacote(k){const i=pacotes.findIndex(p=>p.key===k);
@@ -561,7 +596,9 @@ let uid=Date.now();
 /* ---------- navegação ---------- */
 function show(scr){['scrHome','scrDw','scrFin'].forEach(id=>$('#'+id).hidden=id!==scr);$('#back').hidden=scr==='scrHome';}
 $('#back').onclick=()=>{if(!$('#scrFin').hidden&&cur){openDw(cur);return}cur=null;show('scrHome');renderHome();setTitle()};
-function setTitle(){const p=P();$('#ttl').textContent=p?p.pk.desenho.nome.replace('M447-ELE-SUP-',''):'Suportes em Campo';$('#sub').textContent=p?(mode==='nova'?'Nova marcação':'Suportes já indicados'):'M447 · Elétrica'}
+function setTitle(){const p=P();$('#ttl').textContent=p?codCurto(p):'Suportes em Campo';
+  // o modo já aparece nos botões Indicados/Nova marcação: no subtítulo vai o título do carimbo
+  $('#sub').textContent=p?(tituloDe(p)||(mode==='nova'?'Nova marcação':'Suportes já indicados')):'M447 · Elétrica'}
 function totalConf(){return Object.values(st.marks).reduce((a,m)=>a+m.filter(x=>x.st==='conf').length,0)}
 function totalOc(){return Object.keys(st.ex).reduce((a,k)=>a+notasEx(k).length,0)}
 function renderBadge(){const n=totalConf()+totalOc();$('#finBadge').textContent=n;$('#finBadge').hidden=!n}
@@ -622,7 +659,8 @@ function renderHome(){
   $('#cards').innerHTML=lista.map(p=>{const m=marksOf(p.key),c=m.filter(x=>x.st==='conf').length,pe=m.filter(x=>x.st==='pend').length,sub=substitutoDe(p),d=sits.get(p.key);
     const conf=confirmando===p.key?`<div class="confirm"><span class="grow">Tirar este desenho do aparelho${c+pe?` e apagar ${c+pe} marcação(ões)`:''}?</span><button class="btn sm danger" type="button" data-rm="${esc(p.key)}">Remover</button><button class="btn sm" type="button" data-cancel>Cancelar</button></div>`:'';
     const kgInd=pesoIndicados(p),kgNovo=pesoMarcas(p,x=>x.st==='conf');
-    return`<div class="card est-${d.est}"><button type="button" class="open" data-k="${esc(p.key)}"><span class="n">${esc(p.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span><span class="f">${esc(p.pk.desenho.arquivo)}</span></button>
+    const tit=tituloDe(p);
+    return`<div class="card est-${d.est}"><button type="button" class="open" data-k="${esc(p.key)}">${tit?`<span class="tit">${esc(tit)}</span>`:''}<span class="n">${esc(codCurto(p))}</span><span class="f">${esc(p.pk.desenho.arquivo)}</span></button>
       <div class="acts"><button type="button" class="btn primary sm" data-k="${esc(p.key)}">Abrir</button></div>
       <div class="kg">Peso no desenho <b>${fmtKg(kgInd+kgNovo)} kg</b>${kgNovo?` · <b class="ok">+${fmtKg(kgNovo)} kg</b> neste levantamento`:''}</div>
       <div class="s">${sub?`<span class="chip warn">Substituído pela ${esc(sub.pk.desenho.nome.replace('M447-ELE-SUP-',''))}</span>`:''}${(ri=>ri?`<span class="chip">Rev. ${ri.atual.rev}${ri.atual.data?' · '+esc(dataCurta(ri.atual.data)):''}</span>${ri.nova?`<span class="chip warn">Existe Rev. ${ri.nova.rev}</span>`:''}`:'')(revInfo(p))}<span class="chip">${p.pk.suportesExistentes.length} indicados</span>${c?`<span class="chip ok">${c} novo${c>1?'s':''} confirmado${c>1?'s':''}</span>`:''}${d.aEnviar?`<span class="chip warn">${d.aEnviar} a enviar</span>`:d.enviados?`<span class="chip ok">Enviado ${dataHora(d.ultEnvio)}</span>`:''}${d.aberto?'':'<span class="chip mut">Não aberto</span>'}${pe?`<span class="chip ac">${pe} sem confirmar</span>`:''}${notasEx(p.key).length?`<span class="chip warn">${notasEx(p.key).length} ocorrência${notasEx(p.key).length>1?'s':''}</span>`:''}<span class="grow"></span><button type="button" class="btn ghost sm" data-ask="${esc(p.key)}">Remover</button></div>${conf}</div>`}).join('');
@@ -948,7 +986,7 @@ function abrirFotoCampo(id){const a=sel&&(sel.t==='m'?{t:'m',id:sel.id}:{t:'ex',
   const o=a&&notaDe(a,false),cod=a?(a.t==='m'?o&&o.code:P().pk.suportesExistentes[a.i].codigo):'';
   fotoAberta={id,a,k:cur};$('#fotoCod').textContent=cod||'';$('#fotoTag').textContent='Foto do campo';$('#fotoInfo').textContent='';
   $('#fotoArea').classList.remove('zoom');$('#fotoImg').src=fotosCampo[id];$('#fotoImg').hidden=false;$('#fotoDica').textContent='Toque na foto para ampliar.';
-  $('#fotoRm').hidden=!a;$('#fotoBg').hidden=false}
+  $('#fotoRm').hidden=!a;fotoAcao=null;$('#fotoAcao').hidden=true;$('#fotoBg').hidden=false}
 $('#fotoRm').onclick=()=>{const f=fotoAberta;if(!f||!f.a||f.k!==cur)return;pushUndo('excluir foto');const o=notaDe(f.a,false);
   if(o)o.fotos=(o.fotos||[]).filter(x=>x!==f.id);limparNotasVazias();save();$('#fotoBg').hidden=true;renderDw();toast('Foto excluída',{rotulo:'Desfazer',fn:desfazer})};
 
@@ -967,7 +1005,10 @@ function openDw(k){
 const A=()=>P().pk.area;
 const toPx=(x,y)=>[(x-A().minX)/A().mmPorPixel,(A().maxY-y)/A().mmPorPixel];
 const toW=(px,py)=>[A().minX+px*A().mmPorPixel,A().maxY-py*A().mmPorPixel];
-function applyV(){stage.style.transform=`translate(${V.tx}px,${V.ty}px) scale(${V.s})`}
+// will-change só enquanto a planta se mexe; parada, o navegador redesenha nítido no zoom atual
+let tMov=0;
+function applyV(){stage.style.transform=`translate(${V.tx}px,${V.ty}px) scale(${V.s})`;
+  stage.classList.add('mov');clearTimeout(tMov);tMov=setTimeout(()=>stage.classList.remove('mov'),180)}
 let tamAnt=null,precisaFit=false;
 function fit(){const r=canvas.getBoundingClientRect();if(!r.width)return;V.s=Math.min(r.width/W,r.height/H)*.98;V.tx=(r.width-W*V.s)/2;V.ty=(r.height-H*V.s)/2;applyV();tamAnt={w:r.width,h:r.height};precisaFit=false}
 function zoomAt(cx,cy,f){const r=canvas.getBoundingClientRect(),sx=cx-r.left,sy=cy-r.top,minS=Math.min(r.width/W,r.height/H)*.5;
@@ -1019,6 +1060,10 @@ function renderOv(){
     if(sel&&sel.t==='m'&&sel.id===m.id)s+=`<circle class="halo" cx="${bx}" cy="${by}" r="${r*1.45}"/>`;
     if(m.pilha===0)s+=leaderSVG(bx,by,ax,ay,r,'ld-'+cls);
     s+=balloonSVG(bx,by,m.code,cls,r,fs);
+    // balão novo selecionado (e arrastável neste modo): bolinha na ponta da seta = alça para mudar o ponto
+    const arrastavel=mode==='ind'?m.st==='conf':m.st==='pend';
+    if(arrastavel&&m.pilha===0&&sel&&sel.t==='m'&&(marksOf(cur).find(q=>q.id===sel.id)||{}).grp===m.grp)
+      s+=`<circle class="alca ld-${cls}" cx="${ax}" cy="${ay}" r="${Math.max(r*.32,9/V.s)}" style="fill:#fff" stroke-width="${lw*1.2}"/>`;
     if((m.obs&&m.obs.trim())||(m.fotos&&m.fotos.length))s+=`<circle class="nota-dot" cx="${bx+r*.78}" cy="${by-r*.78}" r="${r*.3}"/>`;
   });
   if(busca){achados().forEach((b,k)=>{const[x,y]=toPx(b.x,b.y);s+=`<circle class="achado${k===busca.i?' atual':''}" cx="${x}" cy="${y}" r="${r*1.22}"/>`})}
@@ -1032,8 +1077,13 @@ function renderOv(){
 
 /* ---------- toque / zoom ---------- */
 const ptrs=new Map();let g=null;
+const dicaOculta={};
+function esconderDica(){if(!dicaOculta[mode]){dicaOculta[mode]=true;$('#hint').hidden=true;$('#zdica').setAttribute('aria-pressed','false')}}
+$('#zdica').onclick=()=>{dicaOculta[mode]=!dicaOculta[mode];const h=$('#hint');h.hidden=dicaOculta[mode];$('#zdica').setAttribute('aria-pressed',String(!h.hidden))};
+$('#hint').addEventListener('click',esconderDica);
 canvas.addEventListener('pointerdown',e=>{
   if(e.target.closest('.ov'))return;
+  esconderDica();
   try{canvas.setPointerCapture(e.pointerId)}catch(_){}ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size===2){fecharLupa();if(g)clearTimeout(g.timer);const[a,b]=[...ptrs.values()];g={t:'pinch',d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
   if(ptrs.size>2)return;
@@ -1041,12 +1091,25 @@ canvas.addEventListener('pointerdown',e=>{
   // pedido do usuario: "a lupa ao tocar" -- na nova marcação, segurar o dedo
   // parado abre uma lupa acima dele com a mira; arrastar move a mira e soltar
   // marca ali. Toque rápido continua marcando direto; arrastar rápido move a planta.
-  if(mode==='nova'&&ptrs.size===1){const gg=g;gg.timer=setTimeout(()=>{if(g===gg&&g.t==='tap'&&!g.moved&&!g.arrasto&&ptrs.size===1){g.t='lupa';abrirLupa(g.sx,g.sy)}},260)}
+  if(mode==='nova'&&ptrs.size===1){const gg=g;gg.timer=setTimeout(()=>{if(g===gg&&g.t==='tap'&&!g.moved&&!g.arrasto&&!g.seta&&ptrs.size===1){g.t='lupa';abrirLupa(g.sx,g.sy)}},260)}
   // começou em cima de um balão NOVO (visível neste modo)? arrastar move o balão em vez da planta
   if(cur&&P()){const[x,y]=screenToW(e.clientX,e.clientY),r=R();
-    const alvo=marksOf(cur).filter(m=>mode==='ind'?m.st==='conf':m.st==='pend').reverse().find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15);
-    if(alvo){const b0=grupoBase(alvo.grp);g.arrasto={grp:alvo.grp,x0:x,y0:y,bx0:b0.bx,by0:b0.by}}}
+    const vis=marksOf(cur).filter(m=>mode==='ind'?m.st==='conf':m.st==='pend').reverse();
+    const alvo=vis.find(m=>Math.hypot(m.bx-x,m.by-y)<=r*1.15);
+    if(alvo){const b0=grupoBase(alvo.grp);g.arrasto={grp:alvo.grp,x0:x,y0:y,bx0:b0.bx,by0:b0.by}}
+    // pedido do usuario: "alterar a posição da seta da marcação" -- começou na
+    // ponta da seta de um balão novo: arrastar muda o ponto marcado (o balão fica)
+    else{const tol=Math.max(r*.6,26/V.s*A().mmPorPixel),s=vis.find(m=>m.pilha===0&&Math.hypot(m.ax-x,m.ay-y)<=tol);
+      if(s)g.seta={grp:s.grp,x0:x,y0:y,ax0:s.ax,ay0:s.ay}}}
 });
+let setaMov=false;
+function moverSeta(cx,cy){
+  const a=g.seta,[x,y]=screenToW(cx,cy),ar=A();
+  const ax=Math.round(Math.min(ar.maxX,Math.max(ar.minX,a.ax0+(x-a.x0)))),ay=Math.round(Math.min(ar.maxY,Math.max(ar.minY,a.ay0+(y-a.y0))));
+  if(!setaMov){pushUndo('mover seta');setaMov=true}
+  marksOf(cur).forEach(m=>{if(m.grp===a.grp){m.ax=ax;m.ay=ay}});
+  renderOv();
+}
 // pedido do usuario: "uma forma de mover os balões adicionados, e não permitir
 // que eles se choquem com outros balões" -- arrastar move o balão (a pilha
 // inteira, se tiver); a ponta da seta fica no ponto marcado em campo
@@ -1072,6 +1135,7 @@ canvas.addEventListener('pointermove',e=>{
   if(!g.moved)return;
   // no máximo ~60 atualizações/s (redesenhar 500 balões a cada evento pesa em celular simples)
   if(g.arrasto){const t=performance.now();if(!g.ult||t-g.ult>16){g.ult=t;arrastarPara(e.clientX,e.clientY)}return}
+  if(g.seta){const t=performance.now();if(!g.ult||t-g.ult>16){g.ult=t;moverSeta(e.clientX,e.clientY)}return}
   V.tx=g.tx+dx;V.ty=g.ty+dy;applyV();
 });
 function endP(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(!g)return;clearTimeout(g.timer);
@@ -1082,6 +1146,11 @@ function endP(e){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);if(!g
     const bloq=arrasto&&arrasto.bloqueado;arrasto=null;
     sel={t:'m',id:(marksOf(cur).find(m=>m.grp===g.arrasto.grp&&m.pilha===0)||{}).id};
     save();renderDw();if(bloq)toast('Ali encosta em outro balão: ficou na última posição livre');
+  }
+  else if(g.t==='tap'&&g.seta&&g.moved){
+    if(e.type==='pointerup')moverSeta(e.clientX,e.clientY);
+    setaMov=false;sel={t:'m',id:(marksOf(cur).find(m=>m.grp===g.seta.grp&&m.pilha===0)||{}).id};
+    save();renderDw();toast('Ponta da seta movida',{rotulo:'Desfazer',fn:desfazer});
   }
   else if(g.t==='tap'&&!g.moved&&e.type==='pointerup')tap(e.clientX,e.clientY);
   if(!ptrs.size)g=null}
@@ -1124,12 +1193,18 @@ function tap(cx,cy){
     // pedido do usuario: "ao selecionar a planta para fazer marcação e clicar
     // sobre um balão de suporte já adicionado na planta, apareça a foto do
     // desenho do suporte" -- e não marca ali (marcação nova não fica por cima)
+    // pedido do usuario: "adicionar balão onde já tem balão de revisões anteriores" --
+    // a janela do desenho ganha "Marcar <código> neste ponto": balão novo com a seta
+    // no mesmo ponto do antigo, em lugar livre (a ponta da seta pode ser ajustada depois)
     if(!hitM){
       const ie=p.pk.suportesExistentes.findIndex(e=>Math.hypot(e.centro[0]-x,e.centro[1]-y)<=r*1.05);
-      if(ie>=0){sel={t:'ex',i:ie};renderDw();abrirFoto(p.pk.suportesExistentes[ie].codigo,'Já indicado no desenho');return}
+      if(ie>=0){const e=p.pk.suportesExistentes[ie],pt=e.seta||e.centro;sel={t:'ex',i:ie};renderDw();
+        abrirFoto(e.codigo,'Já indicado no desenho',()=>marcarEm(pt[0],pt[1],`Suporte ${st.code} marcado no ponto do ${e.codigo}`));return}
       const mc=marksOf(cur).find(m=>m.st==='conf'&&Math.hypot(m.bx-x,m.by-y)<=r*1.05);
-      if(mc){sel={t:'m',id:mc.id};renderDw();abrirFoto(mc.code,'Novo, já confirmado');return}}
-    pushUndo(hitM?`empilhar ${st.code}`:`marcar ${st.code}`);usouCodigo(st.code);
+      if(mc){sel={t:'m',id:mc.id};renderDw();
+        abrirFoto(mc.code,'Novo, já confirmado',()=>marcarEm(mc.ax,mc.ay,`Suporte ${st.code} marcado no ponto do ${mc.code}`));return}}
+    if(!hitM){marcarEm(x,y);return}
+    pushUndo(`empilhar ${st.code}`);usouCodigo(st.code);
     if(hitM){ // empilha no mesmo ponto, como no "Adicionar suporte"
       const base=ms.filter(m=>m.grp===hitM.grp),top=Math.max(...base.map(m=>m.pilha)),b0=base.find(m=>m.pilha===0);
       const m={id:++uid,grp:hitM.grp,code:st.code,ax:b0.ax,ay:b0.ay,bx:b0.bx,by:b0.by+(top+1)*2*r,pilha:top+1,st:'pend',t:new Date().toISOString()};
@@ -1137,10 +1212,6 @@ function tap(cx,cy){
       // pilha maior encostaria em outro balão? leva a pilha inteira pra' um lugar livre
       if(!grupoLivre(b0.bx,b0.by,top+2,hitM.grp)){const[nx,ny]=place(b0.ax,b0.ay,top+2,hitM.grp);moverGrupo(hitM.grp,nx,ny);toast(`Suporte ${st.code} empilhado (pilha afastada de outro balão)`)}
       else toast(`Suporte ${st.code} empilhado`);
-    }else{
-      const[bx,by]=place(x,y,1,null);const id=++uid;
-      marksOf(cur).push({id,grp:id,code:st.code,ax:Math.round(x),ay:Math.round(y),bx,by,pilha:0,st:'pend',t:new Date().toISOString()});sel={t:'m',id};
-      if(navigator.vibrate)try{navigator.vibrate(15)}catch(_){}
     }
     save();renderDw();return;
   }
@@ -1150,6 +1221,14 @@ function tap(cx,cy){
   renderDw();
   if(sel&&sel.t==='ex')abrirFoto(p.pk.suportesExistentes[sel.i].codigo,'Já indicado no desenho');
   else if(sel&&sel.t==='m'&&hitM)abrirFoto(hitM.code,'Novo, já confirmado');
+}
+// balão novo (código atual) com a ponta da seta em (x,y) e o balão no 1º lugar livre
+function marcarEm(x,y,aviso){
+  pushUndo(`marcar ${st.code}`);usouCodigo(st.code);
+  const[bx,by]=place(x,y,1,null);const id=++uid;
+  marksOf(cur).push({id,grp:id,code:st.code,ax:Math.round(x),ay:Math.round(y),bx,by,pilha:0,st:'pend',t:new Date().toISOString()});sel={t:'m',id};
+  if(navigator.vibrate)try{navigator.vibrate(15)}catch(_){}
+  save();renderDw();if(aviso)toast(aviso,{rotulo:'Desfazer',fn:desfazer});
 }
 // centros de todos os balões ocupando espaço (indicados + novos), menos os do grupo informado
 function ocupados(excluirGrp){
@@ -1200,6 +1279,8 @@ function desfazer(){const u=undo.pop();if(!u)return;const o=JSON.parse(u.s);st.m
 function usouCodigo(c){st.recentes=[c,...(st.recentes||[]).filter(x=>x!==c)].slice(0,8)}
 
 /* ---------- painel ---------- */
+// no celular o painel pode ficar recolhido (só o suporte escolhido e o botão principal)
+const KEY_PAINEL='milplan-campo-painel-min';let painelMin=false;try{painelMin=localStorage.getItem(KEY_PAINEL)==='1'}catch(_){}
 const catOf=c=>P().cat[c]||{codigo:c,tag:'?',pesoKg:0};
 function renderDw(){
   $('#mInd').setAttribute('aria-pressed',mode==='ind');$('#mNova').setAttribute('aria-pressed',mode==='nova');
@@ -1207,9 +1288,12 @@ function renderDw(){
   $('#mInd').textContent=`Indicados (${p.pk.suportesExistentes.length+conf.length})`;
   $('#mNova').textContent=pend.length?`Nova marcação (${pend.length})`:'Nova marcação';
   const h=$('#hint');h.className='ov hint'+(mode==='nova'?' nova':'');
-  h.textContent=mode==='nova'?'Toque onde o suporte foi montado (segure o dedo para abrir a lupa). Balão azul: toque empilha outro. Balão já marcado: mostra o desenho.':'Toque num balão para ver o desenho do suporte.';h.hidden=false;
+  h.textContent=mode==='nova'?'Toque onde o suporte foi montado (segure o dedo para abrir a lupa). Balão azul: toque empilha outro; arraste para mover. Bolinha na ponta da seta: arraste para mudar o ponto. Balão já marcado: mostra o desenho e deixa marcar outro suporte ali.':'Toque num balão para ver o desenho do suporte.';
+  // a dica cobre a planta no celular: some no 1º toque na planta e volta pelo botão "?"
+  h.hidden=!!dicaOculta[mode];$('#zdica').setAttribute('aria-pressed',String(!h.hidden));
   setTitle();renderOv();renderBadge();
-  let s='';const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
+  let s=`<button type="button" class="recolher sempre" data-a="painel" aria-expanded="${!painelMin}">${painelMin?'▴ Mostrar painel':'▾ Recolher painel'}</button>`;
+  const sm=sel&&sel.t==='m'?m.find(x=>x.id===sel.id):null,se=sel&&sel.t==='ex'?p.pk.suportesExistentes[sel.i]:null;
   if(busca){const n=achados().length;
     s+=`<div class="achabar"><span class="mini">${esc(busca.code)}</span><span class="grow"><b>${n}</b> no desenho${n&&busca.i>=0?` · ${busca.i+1} de ${n}`:''}</span>
       ${n>1?`<button type="button" class="btn sm nav" data-a="ach-prev" aria-label="Anterior">‹</button><button type="button" class="btn sm nav" data-a="ach-next" aria-label="Próximo">›</button>`:''}
@@ -1220,10 +1304,10 @@ function renderDw(){
     {const ri=revInfo(p);if(ri)s+=`<div class="row"><span class="kgline grow">Revisão no celular <b>Rev. ${ri.atual.rev}</b>${ri.atual.data?` de ${esc(dataCurta(ri.atual.data))}`:''}${ri.nova?` · <b style="color:var(--warn)">existe Rev. ${ri.nova.rev}</b>`:''}</span>${ri.total?`<button type="button" class="btn sm" data-a="hist">Histórico (${ri.total})</button>`:''}</div>`}
     {const ki=pesoIndicados(p),kn=pesoMarcas(p,x=>x.st==='conf');s+=`<div class="kgline">Peso no desenho <b>${fmtKg(ki+kn)} kg</b>${kn?` · <b class="ok">+${fmtKg(kn)} kg</b> novos`:''}</div>`}
     if(!se&&!sm)s+=`<p class="note">Toque num balão para ver o desenho do suporte, marcar se ele <b>não foi montado</b> ou foi <b>alterado</b>, escrever uma observação ou tirar foto.</p>`;
-    if(se){const c=catOf(se.codigo);s+=`<div class="selcard">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div>${notaHtml({t:'ex',i:sel.i},exOf(cur)[exKey(se,sel.i)],true)}</div>`}
-    if(sm){const c=catOf(sm.code);s+=`<div class="selcard">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
+    if(se){const c=catOf(se.codigo);s+=`<div class="selcard sempre">${fotoBtn(se.codigo)}<span class="mini">${esc(se.codigo)}</span><div class="meta"><b>${esc(c.tag)}</b><small>Já indicado · ${fmtKg(c.pesoKg)} kg</small></div>${notaHtml({t:'ex',i:sel.i},exOf(cur)[exKey(se,sel.i)],true)}</div>`}
+    if(sm){const c=catOf(sm.code);s+=`<div class="selcard sempre">${fotoBtn(sm.code)}<span class="mini ok">${esc(sm.code)}</span><div class="meta grow"><b>${esc(c.tag)}</b><small>Novo · confirmado às ${hhmm(new Date(sm.t))} · ${fmtKg(c.pesoKg)} kg</small></div><button type="button" class="btn sm" data-a="unconf">Remover</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
     if(undo.length)s+=`<div class="row"><span class="note grow">Última ação: ${esc(undo[undo.length-1].txt)}</span><button type="button" class="btn sm" data-a="undo">Desfazer</button></div>`;
-    s+=`<button type="button" class="btn ok" data-a="nova">${pend.length?`Continuar nova marcação (${pend.length})`:'Nova marcação'}</button>`;
+    s+=`<button type="button" class="btn ok sempre" data-a="nova">${pend.length?`Continuar nova marcação (${pend.length})`:'Nova marcação'}</button>`;
   }else{
     {const ri=revInfo(p);if(ri&&ri.nova)s+=`<div class="info">Este celular está com a <b>Rev. ${ri.atual.rev}</b>, mas já existe a <b>Rev. ${ri.nova.rev}</b> deste desenho. Pode marcar: o projetista aplica na revisão mais nova. Se tiver sinal, atualize antes.
       ${sync.token?'<div class="row" style="margin-top:6px"><button type="button" class="btn sm" data-a="atualizar">Buscar atualização agora</button></div>':''}</div>`}
@@ -1237,15 +1321,16 @@ function renderDw(){
       <select data-a="code" aria-label="Trocar código">${p.pk.catalogo.map(x=>`<option value="${esc(x.codigo)}"${x.codigo===sm.code?' selected':''}>${esc(x.codigo)}</option>`).join('')}</select>
       <button type="button" class="btn sm" data-a="del">Excluir</button>${notaHtml({t:'m',id:sm.id},sm,false)}</div>`}
     if(pend.length)s+=`<div class="kgline">Esta marcação soma <b class="ok">+${fmtKg(pesoMarcas(p,x=>x.st==='pend'))} kg</b></div>`;
-    s+=`<div class="row"><span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}${undo.length?` title="Desfazer: ${esc(undo[undo.length-1].txt)}"`:''}>Desfazer</button></div>
-      <button type="button" class="btn ok" data-a="conf"${pend.length?'':' disabled'}>Confirmar adição${pend.length?` (${pend.length})`:''}</button>`;
+    s+=`<div class="row sempre">${painelMin?`<button type="button" class="mini ok" data-a="cat" style="width:36px;height:36px;font-size:14px" aria-label="Suporte ${esc(st.code)}: trocar">${esc(st.code)}</button>`:''}<span class="stat grow"><b>${pend.length}</b> marcado${pend.length===1?'':'s'} para confirmar</span><button type="button" class="btn sm" data-a="undo"${undo.length?'':' disabled'}${undo.length?` title="Desfazer: ${esc(undo[undo.length-1].txt)}"`:''}>Desfazer</button></div>
+      <button type="button" class="btn ok sempre" data-a="conf"${pend.length?'':' disabled'}>Confirmar adição${pend.length?` (${pend.length})`:''}</button>`;
   }
-  $('#panel').innerHTML=s;
+  $('#panel').innerHTML=s;$('#panel').classList.toggle('min',painelMin);
 }
 $('#panel').addEventListener('click',e=>{
   const fc=e.target.closest('[data-fc]');if(fc){abrirFotoCampo(fc.dataset.fc);return}
   const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,m=marksOf(cur);
   const alvo=sel&&(sel.t==='m'?{t:'m',id:sel.id}:{t:'ex',i:sel.i});
+  if(a==='painel'){painelMin=!painelMin;try{localStorage.setItem(KEY_PAINEL,painelMin?'1':'')}catch(_){}renderDw();precisaFit=false;return}
   if(a==='hist'){abrirHist();return}
   if(a==='atualizar'){const k=cur;verificarAtualizacao(true).then(()=>{if(pacotes.some(x=>x.key===k))openDw(k);else{cur=null;show('scrHome');renderHome();setTitle();toast('Desenho trocado pela revisão nova. Abra de novo.')}});return}
   if(a==='ach-prev'){irAchado(-1);return}
@@ -1273,8 +1358,13 @@ function openCat(){$('#catBg').hidden=false;$('#catQ').value='';renderCat();}
 // planta, apareça a foto do desenho do suporte" -- desenho recortado da
 // moldura do M447-ELE-SUP-000 (chega no pacote, ver SuporteFotos no plugin)
 function fotoBtn(codigo){const f=fotos[codigo];return f?`<button type="button" class="foto-btn" data-foto="${esc(codigo)}" aria-label="Ver desenho do suporte ${esc(codigo)}"><img src="${f.url}" alt=""></button>`:''}
-function abrirFoto(codigo,info){
+let fotoAcao=null;
+function abrirFoto(codigo,info,marcar){
   const c=catOf(codigo),f=fotos[codigo];
+  // na nova marcação: botão para marcar o suporte escolhido no ponto deste balão
+  fotoAcao=marcar||null;$('#fotoAcao').hidden=!marcar;
+  if(marcar){const cc=catOf(st.code);$('#fotoMarcar').textContent=`Marcar ${st.code} neste ponto`;
+    $('#fotoAcaoNota').textContent=`Montado outro suporte aqui? Marca o ${st.code} (${cc.tag}) com a seta no mesmo ponto deste balão. Para outro código, feche e troque o suporte no painel.`}
   $('#fotoCod').textContent=codigo;$('#fotoTag').textContent=c.tag||(f&&f.tag)||'';
   $('#fotoInfo').textContent=(info?info+' · ':'')+(c.pesoKg?fmtKg(c.pesoKg)+' kg':'');
   const a=$('#fotoArea');a.classList.remove('zoom');$('#fotoRm').hidden=true;fotoAberta=null;
@@ -1284,6 +1374,7 @@ function abrirFoto(codigo,info){
 }
 $('#fotoFechar').onclick=()=>$('#fotoBg').hidden=true;
 $('#fotoBg').addEventListener('click',e=>{if(e.target.id==='fotoBg')$('#fotoBg').hidden=true});
+$('#fotoMarcar').onclick=()=>{const f=fotoAcao;fotoAcao=null;$('#fotoBg').hidden=true;if(f)f()};
 $('#fotoArea').addEventListener('click',()=>$('#fotoArea').classList.toggle('zoom'));
 document.addEventListener('click',e=>{const b=e.target.closest('[data-foto]');if(!b)return;e.stopPropagation();abrirFoto(b.dataset.foto)},true);
 
@@ -1393,12 +1484,13 @@ async function openFinal(){
       ${st.resp?'':`<div class="field"><label for="respFin">Seu nome (obrigatório para enviar)</label><input id="respFin" type="text" placeholder="Nome do responsável em campo" autocomplete="name"></div>`}
       ${sync.tokenEnvio?`<button class="btn envia" type="button" id="direto" disabled>Enviar direto ao projetista</button><div class="fila" id="filaInfo" hidden></div>`:''}
       <button class="btn wa" type="button" id="share" disabled>${st.resp?'Preparando arquivos…':'Preencha seu nome para enviar'}</button>
+      <div id="envioAviso" class="info" hidden></div>
       <div class="row"><a class="btn sm" id="dl" hidden>Baixar o .zip</a><span class="note grow" id="shareNote"></span></div>
       <div class="row"><button class="btn sm" type="button" id="pdfBtn" disabled>Resumo em PDF</button><a class="btn sm" id="pdfDl" hidden>Baixar o PDF</a><span class="note grow" id="pdfNote">Para o cliente ou a fiscalização: folhas, pesos e ocorrências.</span></div>
       <div id="novoWrap" hidden><button class="btn sm" type="button" id="novo">Começar novo levantamento</button></div></section>`;
   alt.forEach((p,i)=>{const conf=marksOf(p.key).filter(m=>m.st==='conf'),grp={};conf.forEach(m=>{grp[m.code]=(grp[m.code]||0)+1});let sk=0;
     const rows=Object.keys(grp).sort().map(c=>{const it=p.cat[c]||{tag:'?',pesoKg:0},t=it.pesoKg*grp[c];sk+=t;return`<tr><td class="mono">${esc(c)}</td><td class="n">${grp[c]}</td><td class="mono">${esc(it.tag)}</td><td class="n">${fmtKg(it.pesoKg)}</td><td class="n">${fmtKg(t)}</td></tr>`}).join('');
-    s+=`<section class="block"><div><h3>${esc(p.pk.desenho.nome)}</h3><div class="sub">${esc(p.key)}</div></div>
+    s+=`<section class="block"><div>${tituloDe(p)?`<span class="tit-dw">${esc(tituloDe(p))}</span>`:''}<h3>${esc(p.pk.desenho.nome)}</h3><div class="sub">${esc(p.key)}</div></div>
       <figure class="prev"><div class="cap"><span>Novos em verde · não montado em vermelho · alterado em laranja</span><span>A1</span></div><img id="fol${i}" alt="Folha ${esc(p.pk.desenho.nome)} com as marcações"></figure>
       ${rows?`<div class="tbl"><table><thead><tr><th>Item</th><th class="n">Qtde</th><th>Descrição</th><th class="n">Peso unit.</th><th class="n">Peso total</th></tr></thead><tbody>${rows}</tbody>
       <tfoot><tr><td colspan="4">Total adicionado</td><td class="n">${fmtKg(sk)}</td></tr></tfoot></table></div>
@@ -1554,27 +1646,56 @@ async function enviarDireto(){
     (envio.itens.marcas||[]).forEach(([k,id])=>{const m=(st.marks[k]||[]).find(x=>x.id===id);if(m)m.naFila=quando});save();renderFilaInfo();
   }
 }
+// pedido do usuario: "corrigir envio pelo whatsapp" -- "não responde nada, nem no
+// android nem no iphone". Causas: (1) o Chrome do Android não compartilha .zip pela
+// Web Share (só imagem, PDF, texto, áudio e vídeo; lista do Chromium), então as duas
+// tentativas eram puladas e só aparecia uma frase pequena ao lado do botão; (2) no
+// iPhone, arquivos + texto juntos fazem o WhatsApp descartar os arquivos; (3) a 2ª
+// tentativa depois de um erro não tem mais o "toque do usuário" e falha calada.
+// Agora: uma tentativa só, sem texto; se o .zip não puder ir pelo compartilhar, o
+// .zip é salvo no aparelho e o compartilhar leva as folhas, com o passo a passo
+// para anexar o .zip no WhatsApp em destaque. O resultado sempre aparece na tela.
+function avisoEnvio(html,cls){const el=$('#envioAviso');if(!el)return;el.className=cls||'info';el.innerHTML=html;el.hidden=false;
+  el.scrollIntoView({block:'nearest',behavior:'smooth'})}
+function baixarZip(){const a=document.createElement('a');a.href=URL.createObjectURL(envio.zip);a.download=envio.zip.name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},60000)}
+function marcarTudoEnviado(){
+  // marca como enviados (some o alerta da tela inicial); continuam no
+  // aparelho até "Começar novo levantamento"
+  const agora=new Date().toISOString();Object.values(st.marks).forEach(ms=>ms.forEach(m=>{if(m.st==='conf'&&!m.enviado)m.enviado=agora}));
+  Object.keys(st.ex).forEach(k=>notasEx(k).forEach(o=>{if(!o.enviado)o.enviado=agora}));save();
+}
+const PASSO_ZIP=nome=>`No WhatsApp, na conversa com o projetista: <b>📎 Anexar › Documento</b> e escolha <span class="mono">${esc(nome)}</span> (pasta <b>Downloads</b>). Sem esse arquivo o projetista não consegue importar o levantamento.
+  <div class="row" style="margin-top:8px"><button type="button" class="btn sm ok" id="jaAnexei">Já anexei o .zip no WhatsApp</button></div>`;
 async function enviar(){
   const note=$('#shareNote');note.textContent='';
   if(!envio)return;
-  const tentativas=[[envio.zip,...envio.folhas],[envio.zip]];
-  if(!navigator.share){note.textContent='Este navegador não compartilha arquivos. Use “Baixar o .zip” e envie pelo WhatsApp.';return}
-  for(const files of tentativas){
-    if(navigator.canShare&&!navigator.canShare({files}))continue;
-    try{
-      await navigator.share({files,title:'Levantamento de suportes',text:`Levantamento de suportes${st.resp?' – '+st.resp:''} (${totalConf()} novos${totalOc()?`, ${totalOc()} ocorrência(s)`:''})`});
-      // marca como enviados (some o alerta da tela inicial); continuam no
-      // aparelho até "Começar novo levantamento"
-      const agora=new Date().toISOString();Object.values(st.marks).forEach(ms=>ms.forEach(m=>{if(m.st==='conf'&&!m.enviado)m.enviado=agora}));
-      Object.keys(st.ex).forEach(k=>notasEx(k).forEach(o=>{if(!o.enviado)o.enviado=agora}));save();
-      note.textContent='Arquivos enviados.';$('#novoWrap').hidden=false;return;
-    }catch(e){
-      if(e&&e.name==='AbortError'){note.textContent='Envio cancelado.';return}
-    }
+  const pode=files=>{try{return!navigator.canShare||navigator.canShare({files})}catch(_){return false}};
+  const comZip=[envio.zip,...envio.folhas],soZip=[envio.zip];
+  let files=null,zipJunto=true;
+  if(navigator.share){
+    if(pode(comZip))files=comZip;else if(pode(soZip))files=soZip;
+    else if(envio.folhas.length&&pode(envio.folhas)){files=envio.folhas;zipJunto=false}
   }
-  note.textContent='O celular não deixou compartilhar esses arquivos. Use “Baixar o .zip” e anexe no WhatsApp.';
+  if(!files){ // navegador sem compartilhar arquivos (ou nem as imagens): só o .zip baixado
+    baixarZip();
+    avisoEnvio(`<b>O .zip foi salvo no celular.</b> Este navegador não envia arquivos direto para o WhatsApp. Abra o WhatsApp e anexe o arquivo. ${PASSO_ZIP(envio.zip.name)}`);
+    return;
+  }
+  if(!zipJunto)baixarZip(); // Android: o .zip não pode ir pelo compartilhar; fica em Downloads
+  try{
+    await navigator.share({files}); // sem title/text: com texto, o WhatsApp do iPhone descarta os arquivos
+  }catch(e){
+    if(e&&e.name==='AbortError'){avisoEnvio(zipJunto?'Envio cancelado. Toque de novo em <b>Enviar pelo WhatsApp</b> quando quiser.':`Envio das folhas cancelado. O .zip continua salvo no celular. ${PASSO_ZIP(envio.zip.name)}`);return}
+    if(zipJunto)baixarZip();
+    avisoEnvio(`<b>O celular não deixou compartilhar</b> (${esc(e&&(e.message||e.name)||'erro')}). O .zip foi salvo no celular. ${PASSO_ZIP(envio.zip.name)}`,'info aviso');
+    return;
+  }
+  if(zipJunto){marcarTudoEnviado();$('#novoWrap').hidden=false;avisoEnvio(`<b>Pronto.</b> Confira na conversa do WhatsApp se chegou o arquivo <span class="mono">${esc(envio.zip.name)}</span>.`);note.textContent='Arquivos enviados.'}
+  else avisoEnvio(`<b>Folhas enviadas. Falta o .zip:</b> o Android não deixa mandar .zip por aqui, então ele foi salvo no celular. ${PASSO_ZIP(envio.zip.name)}`,'info aviso');
 }
 $('#fin').addEventListener('click',e=>{
+  if(e.target.id==='jaAnexei'){marcarTudoEnviado();$('#novoWrap').hidden=false;avisoEnvio('<b>Pronto.</b> Levantamento marcado como enviado.');$('#shareNote').textContent='Arquivos enviados.';return}
   if(e.target.id==='novo'){const b=e.target;
     if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Tocar de novo para apagar os confirmados';b.classList.add('danger');return}
     Object.keys(st.marks).forEach(k=>{st.marks[k]=st.marks[k].filter(m=>m.st!=='conf')});st.ex={};save();limparFotos();toast('Pronto para um novo levantamento');openFinal()}

@@ -359,6 +359,24 @@ html[data-sem-dicas] .dica{display:none}
 .exi-lin .pct{min-width:52px;text-align:center;font-family:var(--f-mono)}
 .exi-lin input[type=checkbox]{width:26px;height:26px;min-height:0;padding:0}
 .exi-lin .btn{flex:1}
+/* treinamento do reconhecimento: câmera do próprio app (a foto não vai para a galeria) */
+.treino{max-width:760px;margin:0 auto;padding-block:12px 40px;padding-inline:16px;display:grid;gap:12px}
+.cam{position:relative;width:100%;aspect-ratio:3/4;max-height:64vh;background:#000;border-radius:12px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+@media (orientation:landscape){.cam{aspect-ratio:16/9;max-height:70vh}}
+.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.cam svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.cam.foto svg{pointer-events:auto;cursor:crosshair}
+.cam .msg{position:absolute;left:10px;right:10px;top:10px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.62);color:#fff;font-size:14px;line-height:1.35;text-align:center;pointer-events:none}
+.cam .msg:empty{display:none}
+.tr-acoes{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.tr-acoes>:first-child{justify-self:start}.tr-acoes>:last-child{justify-self:end}
+.disparo{width:74px;height:74px;border-radius:50%;border:5px solid var(--line);background:#fff;box-shadow:inset 0 0 0 3px #17202A;padding:0}
+.disparo:disabled{opacity:.4}
+.tr-foto-acoes{display:flex;gap:10px}.tr-foto-acoes .btn{flex:1}
+.tr-lista{display:flex;flex-wrap:wrap;gap:6px}
+.tr-lista span{display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2);font-size:13.5px}
+.tr-lista b{font-family:'IBM Plex Mono',monospace}
+.treino ul{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -379,6 +397,11 @@ html[data-sem-dicas] .dica{display:none}
       <section class="prog" id="prog" hidden></section>
       <div class="cards" id="cards"></div>
       <div class="row"><button class="btn sm" type="button" id="guiaAbrir">Como usar o app</button></div>
+      <section class="bkp">
+        <h3>Treinar o reconhecimento por foto</h3>
+        <p class="note">Fotografe suportes montados e marque qual é cada um. As fotos vão direto para o projetista e não ficam salvas no celular. Com elas o app vai aprender a reconhecer os suportes pela câmera.</p>
+        <div class="row"><button class="btn sm" type="button" id="trAbrir">Abrir treinamento</button></div>
+      </section>
       <div class="upload">
         <p>Recebeu desenhos pelo WhatsApp? Salve o arquivo <span class="mono">.campo.zip</span> no celular e abra aqui. Ele fica guardado no aparelho.</p>
         <label class="btn primary" for="zipIn">Abrir pacote</label>
@@ -425,6 +448,39 @@ html[data-sem-dicas] .dica{display:none}
   </main>
 
   <main class="screen" id="scrFin" hidden><div class="fin" id="fin"></div></main>
+
+  <main class="screen" id="scrTreino" hidden>
+    <div class="treino">
+      <div class="info" id="trSemChave" hidden>Para enviar as fotos é preciso o <b>envio direto</b> ligado (chave de envio do projetista). Ligue na tela inicial, em <b>Atualização automática › Envio direto</b>. Dá para tirar e marcar as fotos, mas elas só saem com a chave.</div>
+      <div class="row" style="flex-wrap:nowrap" id="trSup"></div>
+      <div class="cam" id="trCam">
+        <video id="trVideo" playsinline muted autoplay></video>
+        <canvas id="trFoto" hidden></canvas>
+        <svg id="trOv" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="msg" id="trMsg"></div>
+      </div>
+      <div class="tr-acoes" id="trAcoesCam">
+        <label class="btn sm" for="trIn">Escolher foto</label><input id="trIn" type="file" accept="image/*" hidden>
+        <button type="button" class="disparo" id="trDisparo" aria-label="Tirar foto"></button>
+        <span class="note" id="trFilaMini"></span>
+      </div>
+      <div class="tr-foto-acoes" id="trAcoesFoto" hidden>
+        <button type="button" class="btn" id="trDescartar">Descartar</button>
+        <button type="button" class="btn ok" id="trEnviar" disabled>Enviar foto</button>
+      </div>
+      <p class="note" id="trStatus"></p>
+      <details class="bkp"><summary><b>Como tirar boas fotos</b></summary>
+        <ul>
+          <li>Escolha o suporte acima, aponte e toque no botão branco.</li>
+          <li><b>Arraste o dedo</b> na foto fazendo um retângulo justo em volta do suporte. Mais de um suporte na foto? Troque o código acima e marque o outro.</li>
+          <li>Tire várias fotos de cada suporte: de frente, de lado, de baixo, perto e longe, com sol e com sombra. Quanto mais variado, melhor o reconhecimento.</li>
+          <li>Só marque suportes que você tem certeza do código.</li>
+          <li>As fotos não vão para a galeria e não ficam no celular. Sem sinal, esperam na fila só enquanto o app estiver aberto.</li>
+        </ul>
+      </details>
+      <section class="bkp"><h3>Enviadas deste celular</h3><div class="tr-lista" id="trLista"></div></section>
+    </div>
+  </main>
 </div>
 
 <div class="sheet-bg" id="catBg" hidden>
@@ -657,8 +713,8 @@ const P=()=>pacotes.find(p=>p.key===cur);
 let uid=Date.now();
 
 /* ---------- navegação ---------- */
-function show(scr){['scrHome','scrDw','scrFin'].forEach(id=>$('#'+id).hidden=id!==scr);$('#back').hidden=scr==='scrHome';
-  if(scr!=='scrDw'&&cheia)telaCheia(false)}
+function show(scr){['scrHome','scrDw','scrFin','scrTreino'].forEach(id=>$('#'+id).hidden=id!==scr);$('#back').hidden=scr==='scrHome';
+  if(scr!=='scrDw'&&cheia)telaCheia(false);if(scr!=='scrTreino')desligarCamera()}
 $('#back').onclick=()=>{if(!$('#scrFin').hidden&&cur){openDw(cur);return}cur=null;show('scrHome');renderHome();setTitle()};
 function setTitle(){const p=P();$('#ttl').textContent=p?codCurto(p):'Suportes em Campo';
   // o modo já aparece nos botões Indicados/Nova marcação: no subtítulo vai o título do carimbo
@@ -1574,11 +1630,11 @@ $('#mInd').onclick=()=>{mode='ind';sel=null;renderDw()};
 $('#mNova').onclick=()=>{mode='nova';sel=null;renderDw()};
 
 // catAlvo: id do balão cujo número está sendo trocado (null = escolher o suporte da marcação)
-let catAlvo=null;
-function openCat(){const x=catAlvo!=null&&marksOf(cur).find(q=>q.id===catAlvo);if(!x)catAlvo=null;
-  $('#catBg .h h3').textContent=x?`Trocar o número do balão ${x.code}`:'Escolher suporte';
+let catAlvo=null,catModo=null;
+function openCat(){const x=catModo!=='treino'&&catAlvo!=null&&marksOf(cur).find(q=>q.id===catAlvo);if(!x)catAlvo=null;
+  $('#catBg .h h3').textContent=catModo==='treino'?'Qual suporte está na foto?':x?`Trocar o número do balão ${x.code}`:'Escolher suporte';
   $('#catBg').hidden=false;$('#catQ').value='';renderCat();}
-function fecharCat(){$('#catBg').hidden=true;catAlvo=null}
+function fecharCat(){$('#catBg').hidden=true;catAlvo=null;catModo=null}
 // pedido do usuario: "ao clicar sobre um balão de suporte já adicionado na
 // planta, apareça a foto do desenho do suporte" -- desenho recortado da
 // moldura do M447-ELE-SUP-000 (chega no pacote, ver SuporteFotos no plugin)
@@ -1606,7 +1662,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-foto]');if
 // busca: "5" acha o 05 primeiro (número igual), depois códigos que começam
 // com o texto, depois qualquer código/tag que contenha. Sem busca: últimos
 // usados no topo.
-function renderCat(){const q=$('#catQ').value.trim().toLowerCase(),cat=P().pk.catalogo,qn=/^\d+$/.test(q)?+q:null;
+function renderCat(){const q=$('#catQ').value.trim().toLowerCase(),cat=catModo==='treino'?catalogoGeral():P().pk.catalogo,qn=/^\d+$/.test(q)?+q:null;
   const nota=c=>{const cod=c.codigo.toLowerCase();if(qn!==null&&+c.codigo===qn)return 0;if(cod.startsWith(q))return 1;if(cod.includes(q))return 2;
     return(c.tag||'').toLowerCase().includes(q)||(c.tag||'').toLowerCase().replace(/[^a-z0-9]/g,'').includes(q.replace(/[^a-z0-9]/g,''))?3:9};
   let html;
@@ -1614,17 +1670,146 @@ function renderCat(){const q=$('#catQ').value.trim().toLowerCase(),cat=P().pk.ca
   else{const rec=(st.recentes||[]).map(x=>cat.find(c=>c.codigo===x)).filter(Boolean).slice(0,6);
     html=(rec.length?`<div class="sec">Últimos usados</div>${rec.map(itemCat).join('')}<div class="sec">Todos</div>`:'')+cat.map(itemCat).join('')}
   $('#catList').innerHTML=html||'<p class="note" style="padding:8px">Nenhum suporte com esse código ou tag.</p>'}
-function itemCat(c){const at=catAlvo!=null?(marksOf(cur).find(q=>q.id===catAlvo)||{}).code:st.code;return`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===at?'on':''}${fotos[c.codigo]?' com-foto':''}">${fotos[c.codigo]?`<img class="foto-mini" loading="lazy" src="${fotos[c.codigo].url}" alt="Ver desenho do ${esc(c.codigo)}" data-foto="${esc(c.codigo)}">`:''}<span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`}
+function itemCat(c){const at=catModo==='treino'?tr.code:catAlvo!=null?(marksOf(cur).find(q=>q.id===catAlvo)||{}).code:st.code;return`<button type="button" data-c="${esc(c.codigo)}" class="${c.codigo===at?'on':''}${fotos[c.codigo]?' com-foto':''}">${fotos[c.codigo]?`<img class="foto-mini" loading="lazy" src="${fotos[c.codigo].url}" alt="Ver desenho do ${esc(c.codigo)}" data-foto="${esc(c.codigo)}">`:''}<span class="c">${esc(c.codigo)}</span><span class="mono" style="font-size:13px">${esc(c.tag)}</span><span class="k">${fmtKg(c.pesoKg)} kg</span></button>`}
 $('#catQ').addEventListener('input',renderCat);
 // Enter na busca escolhe o primeiro da lista
 $('#catQ').addEventListener('keydown',e=>{if(e.key!=='Enter')return;const b=$('#catList button[data-c]');if(b){e.preventDefault();b.click()}});
 $('#catList').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(!b)return;const c=b.dataset.c;
+  if(catModo==='treino'){tr.code=c;usouCodigo(c);save();fecharCat();renderTreino();return}
   if(catAlvo!=null){const x=marksOf(cur).find(q=>q.id===catAlvo);fecharCat();
     if(x&&x.code!==c){const de=x.code;pushUndo(`trocar ${de} por ${c}`);x.code=c;delete x.enviado;x.t=x.st==='conf'?new Date().toISOString():x.t;usouCodigo(c);sel={t:'m',id:x.id};save();renderDw();toast(`Balão ${de} trocado para ${c}`,{rotulo:'Desfazer',fn:desfazer})}
     return}
   st.code=c;usouCodigo(st.code);save();fecharCat();renderDw()});
 $('#catClose').onclick=fecharCat;
 $('#catBg').addEventListener('click',e=>{if(e.target.id==='catBg')fecharCat()});
+
+/* ---------- treinamento do reconhecimento por foto ---------- */
+// pedido do usuario: "uma aba de treinamento no app que o usuário irá enviar as
+// fotos dos suportes e indicar quais fotos são de cada suporte, essas fotos não
+// poderão ficar no aparelho do usuário" -- câmera do próprio app (getUserMedia:
+// não grava na galeria), o retângulo em volta de cada suporte com o código
+// (formato pronto para treinar detector tipo YOLO) e envio direto ao repositório
+// privado de retornos, em treino/AAAA-MM/<id>.jpg + <id>.json. A foto fica só na
+// memória até subir; nada vai para o IndexedDB nem para o localStorage.
+const KEY_TREINO='milplan-campo-treino';
+let trCont={total:0,por:{}};try{trCont=Object.assign(trCont,JSON.parse(localStorage.getItem(KEY_TREINO))||{})}catch(_){}
+var tr={code:null,stream:null,foto:null,caixas:[],origem:null,fila:[],enviando:false,erro:'',parado:false,camErro:'',timer:null};
+function catalogoGeral(){const m=new Map();pacotes.forEach(p=>p.pk.catalogo.forEach(c=>{if(!m.has(c.codigo))m.set(c.codigo,c)}));
+  return[...m.values()].sort((a,b)=>a.codigo.localeCompare(b.codigo,'pt-BR',{numeric:true}))}
+const catGeral=c=>catalogoGeral().find(x=>x.codigo===c)||{codigo:c,tag:'',pesoKg:0};
+function abrirTreino(){
+  const cat=catalogoGeral();if(!cat.length){toast('Abra um pacote de desenhos antes: a lista de suportes vem nele');return}
+  if(!tr.code||!cat.some(c=>c.codigo===tr.code))tr.code=(st.recentes||[]).find(x=>cat.some(c=>c.codigo===x))||cat[0].codigo;
+  cur=null;show('scrTreino');$('#ttl').textContent='Treinamento';$('#sub').textContent='Fotos para o reconhecimento';
+  renderTreino();if(!tr.foto)ligarCamera();
+}
+async function ligarCamera(){
+  if(tr.stream||$('#scrTreino').hidden||tr.foto)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){tr.camErro='Este navegador não dá acesso à câmera. Use "Escolher foto".';renderTreino();return}
+  try{const s=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+    if($('#scrTreino').hidden||tr.foto||document.visibilityState!=='visible'){s.getTracks().forEach(t=>t.stop());return}
+    tr.stream=s;const v=$('#trVideo');v.srcObject=s;await v.play().catch(()=>{});tr.camErro=''}
+  catch(e){tr.camErro=e&&e.name==='NotAllowedError'?'O celular não deu permissão para a câmera. Libere a câmera para este site nas configurações do navegador, ou use "Escolher foto".'
+    :`Não consegui abrir a câmera (${(e&&(e.message||e.name))||'erro'}). Use "Escolher foto".`}
+  renderTreino();
+}
+function desligarCamera(){if(!tr)return;if(tr.stream){tr.stream.getTracks().forEach(t=>t.stop());tr.stream=null}const v=$('#trVideo');if(v)v.srcObject=null}
+// congela a foto (no máximo 1280 px no lado maior) num canvas da tela
+function congelar(src,w0,h0,origem){
+  const k=Math.min(1,1280/Math.max(w0,h0)),c=$('#trFoto');c.width=Math.round(w0*k);c.height=Math.round(h0*k);
+  c.getContext('2d').drawImage(src,0,0,c.width,c.height);tr.foto={w:c.width,h:c.height};tr.caixas=[];tr.origem=origem;
+  desligarCamera();renderTreino();
+}
+function trDescartar(){tr.foto=null;tr.caixas=[];const c=$('#trFoto');c.width=c.height=1;renderTreino();ligarCamera()}
+async function trEnviar(){
+  if(!tr.foto||!tr.caixas.length)return;
+  const c=$('#trFoto'),W=c.width,H=c.height,blob=await new Promise(ok=>c.toBlob(ok,'image/jpeg',.88)),agora=new Date();
+  const id=`${carimboData()}${pad(agora.getSeconds(),2)}-${Math.random().toString(36).slice(2,7)}`,f=v=>+v.toFixed(5);
+  // caixas no formato do YOLO (centro, largura e altura de 0 a 1) e em pixels
+  const rot={formato:'milplan-treino-suportes/1',id,imagem:id+'.jpg',largura:W,altura:H,origem:tr.origem,tiradoEm:agora.toISOString(),responsavel:st.resp||null,
+    caixas:tr.caixas.map(b=>({codigo:b.codigo,tag:catGeral(b.codigo).tag||null,cx:f((b.x+b.w/2)/W),cy:f((b.y+b.h/2)/H),w:f(b.w/W),h:f(b.h/H),px:[Math.round(b.x),Math.round(b.y),Math.round(b.w),Math.round(b.h)]}))};
+  tr.fila.push({id,pasta:'treino/'+agora.toISOString().slice(0,7),blob,rot,codigos:tr.caixas.map(b=>b.codigo)});
+  tr.parado=false;trDescartar();processarTreino();
+  if(navigator.vibrate)try{navigator.vibrate(15)}catch(_){}
+}
+async function putGh(caminho,b64,msg){
+  const r=await fetch(`https://api.github.com/repos/${sync.repoRet||REPO_RET_PADRAO}/contents/${caminho}`,{method:'PUT',
+    headers:{Authorization:`Bearer ${sync.tokenEnvio}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
+    body:JSON.stringify({message:msg,content:b64})});
+  if(r.status===422)return; // já existe = já subiu antes
+  if(!r.ok)throw Object.assign(new Error(r.status===401?'chave de envio inválida ou vencida':r.status===404?'chave de envio sem permissão no repositório':'erro '+r.status+' do servidor'),{definitivo:r.status===401||r.status===404});
+}
+async function processarTreino(){
+  clearTimeout(tr.timer);
+  if(tr.enviando||!tr.fila.length||!sync.tokenEnvio||tr.parado){renderTrStatus();return}
+  tr.enviando=true;tr.erro='';renderTrStatus();
+  try{while(tr.fila.length){
+    if(!navigator.onLine){tr.erro='Sem internet agora.';break}
+    const it=tr.fila[0];
+    try{if(!it.fotoOk){await putGh(`${it.pasta}/${it.id}.jpg`,await blobB64(it.blob),`Treino: foto ${it.id}`);it.fotoOk=true}
+      await putGh(`${it.pasta}/${it.id}.json`,btoa(unescape(encodeURIComponent(JSON.stringify(it.rot,null,1)))),`Treino: rótulo ${it.id}`);
+      tr.fila.shift();trCont.total++;it.codigos.forEach(c=>{trCont.por[c]=(trCont.por[c]||0)+1});
+      try{localStorage.setItem(KEY_TREINO,JSON.stringify(trCont))}catch(_){}
+      renderTrStatus();renderTrLista();
+    }catch(e){tr.erro=e.message||'falha no envio';if(e.definitivo)tr.parado=true;break}}}
+  finally{tr.enviando=false;renderTrStatus();if(tr.fila.length&&!tr.parado)tr.timer=setTimeout(processarTreino,20000)}
+}
+function renderTrStatus(){
+  const n=tr.fila.length,el=$('#trStatus');if(!el)return;
+  $('#trFilaMini').textContent=n?`${n} na fila`:'';
+  el.innerHTML=!n?(trCont.total?`Tudo enviado. ${trCont.total} foto${trCont.total>1?'s':''} deste celular no total.`:'')
+    :`<b>${n} foto${n>1?'s':''} esperando envio</b>${tr.enviando?' · enviando…':''}${tr.erro?` · ${esc(tr.erro)}`:''}. Não feche o app até sair tudo: a fila fica só na memória.`
+    +(n&&!tr.enviando&&sync.tokenEnvio?' <button type="button" class="btn sm" id="trTentar">Tentar agora</button>':'');
+}
+function renderTrLista(){const el=$('#trLista');if(!el)return;const e=Object.entries(trCont.por).sort((a,b)=>a[0].localeCompare(b[0],'pt-BR',{numeric:true}));
+  el.innerHTML=e.length?e.map(([c,n])=>`<span><b>${esc(c)}</b>${n}</span>`).join(''):'<p class="note">Nenhuma ainda.</p>'}
+function renderTrOv(){
+  const sv=$('#trOv');if(!tr.foto){sv.innerHTML='';sv.removeAttribute('viewBox');return}
+  const{w,h}=tr.foto,lw=Math.max(2,Math.max(w,h)/300),fs=Math.max(14,Math.max(w,h)/34);sv.setAttribute('viewBox',`0 0 ${w} ${h}`);
+  const ret=(b,cls)=>`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="rgba(232,89,12,.12)" stroke="#E8590C" stroke-width="${lw}"${cls?` stroke-dasharray="${lw*3} ${lw*2}"`:''}/>`;
+  let s=tr.caixas.map(b=>ret(b)+`<rect x="${b.x}" y="${Math.max(0,b.y-fs*1.3)}" width="${fs*.7*(b.codigo.length+1)}" height="${fs*1.3}" fill="#E8590C"/><text x="${b.x+fs*.35}" y="${Math.max(0,b.y-fs*1.3)+fs*.98}" font-size="${fs}" fill="#fff" font-family="IBM Plex Mono,monospace" font-weight="600">${esc(b.codigo)}</text>`).join('');
+  if(trArr)s+=ret(caixaDe(trArr),1);sv.innerHTML=s;
+}
+function renderTreino(){
+  if($('#scrTreino').hidden)return;
+  $('#trSemChave').hidden=!!sync.tokenEnvio;
+  const c=catGeral(tr.code);
+  $('#trSup').innerHTML=`${fotoBtn(c.codigo)}<button type="button" class="cur" id="trCod"><span class="mini ok">${esc(c.codigo)}</span><span class="meta"><b>${esc(c.tag||'')}</b><small>${tr.foto?'próximo retângulo será deste suporte · ':''}toque para trocar o suporte</small></span><span aria-hidden="true">›</span></button>`;
+  const f=!!tr.foto;$('#trCam').classList.toggle('foto',f);$('#trFoto').hidden=!f;$('#trVideo').hidden=f;
+  $('#trAcoesCam').hidden=f;$('#trAcoesFoto').hidden=!f;$('#trDisparo').disabled=!tr.stream;
+  $('#trEnviar').disabled=!tr.caixas.length;$('#trEnviar').textContent=tr.caixas.length>1?`Enviar foto (${tr.caixas.length} suportes)`:'Enviar foto';
+  $('#trMsg').textContent=!f?(tr.camErro||(tr.stream?`Aponte para o suporte ${c.codigo} e toque no botão branco.`:'Abrindo a câmera…'))
+    :!tr.caixas.length?`Arraste o dedo em volta do suporte ${c.codigo} para marcar.`
+    :`${tr.caixas.length} marcado${tr.caixas.length>1?'s':''}. Toque num retângulo para apagar. Outro suporte na foto? Troque o código acima e marque.`;
+  renderTrOv();renderTrStatus();renderTrLista();
+}
+// retângulo: arrastar na foto desenha; toque curto em cima de um retângulo apaga
+let trArr=null;
+function trPt(e){const sv=$('#trOv'),p=sv.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(sv.getScreenCTM().inverse());
+  return[Math.max(0,Math.min(tr.foto.w,q.x)),Math.max(0,Math.min(tr.foto.h,q.y))]}
+const caixaDe=a=>({x:Math.min(a.x0,a.x),y:Math.min(a.y0,a.y),w:Math.abs(a.x-a.x0),h:Math.abs(a.y-a.y0)});
+$('#trOv').addEventListener('pointerdown',e=>{if(!tr.foto||trArr)return;e.preventDefault();try{$('#trOv').setPointerCapture(e.pointerId)}catch(_){}
+  const[x,y]=trPt(e);trArr={id:e.pointerId,x0:x,y0:y,x,y}});
+$('#trOv').addEventListener('pointermove',e=>{if(!trArr||e.pointerId!==trArr.id)return;[trArr.x,trArr.y]=trPt(e);renderTrOv()});
+function trSoltar(e){if(!trArr||e.pointerId!==trArr.id)return;const a=trArr,b=caixaDe(a);trArr=null;
+  if(e.type==='pointerup'&&b.w>tr.foto.w*.03&&b.h>tr.foto.h*.03)tr.caixas.push(Object.assign(b,{codigo:tr.code}));
+  else if(e.type==='pointerup'){for(let i=tr.caixas.length-1;i>=0;i--){const k=tr.caixas[i];if(a.x0>=k.x&&a.x0<=k.x+k.w&&a.y0>=k.y&&a.y0<=k.y+k.h){tr.caixas.splice(i,1);toast(`Retângulo do ${k.codigo} apagado`);break}}}
+  renderTreino()}
+$('#trOv').addEventListener('pointerup',trSoltar);$('#trOv').addEventListener('pointercancel',trSoltar);
+$('#trAbrir').onclick=abrirTreino;
+$('#trSup').addEventListener('click',e=>{if(e.target.closest('#trCod')){catModo='treino';openCat()}});
+$('#trDisparo').onclick=()=>{const v=$('#trVideo');if(tr.stream&&v.videoWidth)congelar(v,v.videoWidth,v.videoHeight,'camera')};
+$('#trIn').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
+  const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{congelar(im,im.naturalWidth,im.naturalHeight,'galeria');URL.revokeObjectURL(u)};
+  im.onerror=()=>{URL.revokeObjectURL(u);toast('Não consegui abrir essa imagem')};im.src=u});
+$('#trDescartar').onclick=trDescartar;
+$('#trEnviar').onclick=trEnviar;
+document.addEventListener('click',e=>{if(e.target.id==='trTentar'){tr.parado=false;processarTreino()}});
+window.addEventListener('online',()=>{if(tr.fila.length){tr.parado=false;processarTreino()}});
+// câmera desliga com o app em segundo plano (bateria) e volta ao reabrir
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')desligarCamera();else if(!$('#scrTreino').hidden)ligarCamera()});
+// fechar com foto na fila ou não enviada perde a foto (de propósito ela não fica no celular): avisa
+window.addEventListener('beforeunload',e=>{if(tr.fila.length||tr.foto){e.preventDefault();e.returnValue=''}});
 
 let tt;function toast(t,acao){const el=$('#toast');el.textContent=t;
   if(acao){const b=document.createElement('button');b.type='button';b.textContent=acao.rotulo;b.onclick=()=>{el.hidden=true;acao.fn()};el.appendChild(b)}
